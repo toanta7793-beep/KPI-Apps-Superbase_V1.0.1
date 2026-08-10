@@ -2,7 +2,8 @@
 
 Ghi Evidence, Người kiểm tra, Thời gian và PASS/FAIL cho từng mục.
 
-- [ ] Auth: đăng nhập, reset mật khẩu, logout, session expiry.
+- [ ] Auth: đăng nhập, logout, session expiry.
+- [x] Reset mật khẩu: **KHÔNG áp dụng** — chủ hệ thống quyết định không làm màn hình tự khôi phục (10/08/2026). Admin đặt lại thủ công trên Supabase Dashboard, xem docs/DEPLOYMENT_RUNBOOK.md mục 2b.
 - [ ] RBAC: ADMIN/GIAM_SAT/TO_TRUONG/XEM đúng quyền và đúng phạm vi tổ.
 - [ ] Catalog: cấp 1–2, tìm không dấu, đơn vị/đơn giá/định mức đúng.
 - [ ] Excel nhân sự: file chuẩn PASS; mã trùng/thiếu cột/tổ mơ hồ FAIL và dữ liệu cũ giữ nguyên.
