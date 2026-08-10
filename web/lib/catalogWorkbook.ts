@@ -1,7 +1,7 @@
 import { readSheetRows } from "./cnchWorkbook";
-import { clean, norm, parseAmount, findPriceHeader, findSalaryHeader } from "./catalogHeaders";
+import { clean, norm, parseAmount, priceRowConflict, findPriceHeader, findSalaryHeader } from "./catalogHeaders";
 
-export { parseAmount, findPriceHeader, findSalaryHeader } from "./catalogHeaders";
+export { parseAmount, priceRowConflict, findPriceHeader, findSalaryHeader } from "./catalogHeaders";
 
 export type PriceRow = {
   category_name: string;
@@ -11,7 +11,7 @@ export type PriceRow = {
   work_code: string | null;
   calc_price: number;
 };
-export type PriceWorkbook = { items: PriceRow[]; categories: string[]; sheetName: string };
+export type PriceWorkbook = { items: PriceRow[]; categories: string[]; duplicatesCollapsed: number; sheetName: string };
 
 export type SalaryRow = { system_name: string; grade_name: string; monthly_salary: number };
 export type SalaryWorkbook = { rows: SalaryRow[]; systems: string[]; skippedZero: number; sheetName: string };
@@ -24,7 +24,11 @@ export async function parsePriceWorkbook(file: File): Promise<PriceWorkbook> {
     const header = findPriceHeader(sheet.rows);
     if (!header) continue;
     const items: PriceRow[] = [];
-    const seen = new Set<string>();
+    // Khóa nhận dạng dùng ĐÚNG NGUYÊN VĂN (chỉ gộp khoảng trắng thừa), không chuẩn hóa bỏ dấu
+    // và không bỏ ký tự đặc biệt. Nếu chuẩn hóa thì "… D90 - PN8" và "… D90 – PN8" (gạch nối
+    // khác nhau) sẽ bị coi là một dòng, và đây cũng chính là khóa mà database dùng.
+    const seen = new Map<string, { row: number; price: number }>();
+    let duplicatesCollapsed = 0;
     const categoryOrder: string[] = [];
     for (let i = header.row + 1; i < sheet.rows.length; i++) {
       const line = sheet.rows[i] || [];
@@ -40,10 +44,18 @@ export async function parsePriceWorkbook(file: File): Promise<PriceWorkbook> {
         throw new Error(`Dòng ${i + 1} chứa ký tự ‡ dành riêng cho hệ thống.`);
       const calc_price = parseAmount(rawPrice, i + 1, "Đơn giá");
       if (calc_price < 0) throw new Error(`Dòng ${i + 1}: Đơn giá không được âm.`);
-      const key = `${norm(category_name)}‡${norm(content)}`;
-      if (seen.has(key))
-        throw new Error(`Trùng khóa “${category_name} · ${content}” tại dòng ${i + 1}.`);
-      seen.add(key);
+      // Chỉ coi là TRÙNG khi Hạng mục Cấp 1 + Nội dung Cấp 2 + Đơn giá đều giống hệt —
+      // khi đó bỏ qua dòng lặp, không báo lỗi. Nếu cùng tên nhưng KHÁC đơn giá thì phải dừng:
+      // một công việc chỉ mang được một đơn giá, nếu không thì tính hòa vốn sẽ không biết lấy giá nào.
+      const key = `${category_name}‡${content}`;
+      const prev = seen.get(key);
+      if (prev) {
+        const conflict = priceRowConflict(`${category_name} · ${content}`, prev.row, prev.price, i + 1, calc_price);
+        if (conflict) throw new Error(conflict);
+        duplicatesCollapsed++;
+        continue;
+      }
+      seen.set(key, { row: i + 1, price: calc_price });
       if (!categoryOrder.includes(category_name)) categoryOrder.push(category_name);
       items.push({
         category_name,
@@ -57,7 +69,7 @@ export async function parsePriceWorkbook(file: File): Promise<PriceWorkbook> {
     if (!items.length) throw new Error("File không có dòng đơn giá hợp lệ.");
     if (items.length > PRICE_ROW_LIMIT)
       throw new Error(`File có ${items.length} dòng, vượt giới hạn ${PRICE_ROW_LIMIT} dòng.`);
-    return { items, categories: categoryOrder, sheetName: sheet.path };
+    return { items, categories: categoryOrder, duplicatesCollapsed, sheetName: sheet.path };
   }
   throw new Error("Không nhận diện được các cột Hạng mục Cấp 1, Nội dung công việc Cấp 2, Đơn vị và Đơn giá.");
 }

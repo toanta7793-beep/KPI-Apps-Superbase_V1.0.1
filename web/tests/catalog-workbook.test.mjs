@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseAmount, findPriceHeader, findSalaryHeader } from "../lib/catalogHeaders.ts";
+import { parseAmount, priceRowConflict, findPriceHeader, findSalaryHeader } from "../lib/catalogHeaders.ts";
 
 test("accepts plain numbers and thousand separators, rejects text and formulas", () => {
   assert.equal(parseAmount("245577.8", 2, "Đơn giá"), 245577.8);
@@ -46,4 +46,25 @@ test("salary header is found below a title row", () => {
 test("salary header ignores the derived daily-salary column", () => {
   const header = findSalaryHeader([["Lương 1 ngày (VNĐ)", "Hệ", "Chức danh", "Mức lương tháng (VNĐ)"]]);
   assert.equal(header.monthly, 3);
+});
+
+test("same item at the same price is a harmless repeat, not an error", () => {
+  assert.equal(priceRowConflict("CTN · Ống D90", 5, 52000, 9, 52000), null);
+});
+
+test("same item at two different prices is refused, naming both", () => {
+  const msg = priceRowConflict("CTN · Ống D90", 5, 52000, 9, 61000);
+  assert.match(msg, /Dòng 9/);
+  assert.match(msg, /dòng 5/);
+  assert.match(msg, /52\.000/);
+  assert.match(msg, /61\.000/);
+});
+
+test("items differing only by dash character or by PN size stay distinct", () => {
+  const a = "Thi công Côn (bạc) uPVC D90 - PN8";
+  const b = "Thi công Côn (bạc) uPVC D90 – PN6";
+  const c = "Thi công Côn (bạc) uPVC D90 – PN8";
+  assert.notEqual(`CTN‡${a}`, `CTN‡${b}`);
+  assert.notEqual(`CTN‡${a}`, `CTN‡${c}`, "gạch nối thường và gạch ngang dài phải là hai dòng khác nhau");
+  assert.notEqual(`CTN‡${b}`, `CTN‡${c}`);
 });

@@ -47,3 +47,18 @@ export function findSalaryHeader(rows: string[][]) {
   }
   return null;
 }
+
+/**
+ * Quyết định khi hai dòng đơn giá có cùng Hạng mục Cấp 1 + Nội dung Cấp 2.
+ * Chỉ coi là dòng lặp (bỏ qua được) khi ĐƠN GIÁ cũng giống hệt.
+ * Khác đơn giá thì trả về câu lỗi, vì mỗi công việc chỉ lưu được một đơn giá —
+ * để hai giá thì lúc tính hòa vốn hệ thống không biết lấy giá nào.
+ */
+export function priceRowConflict(
+  label: string, prevRow: number, prevPrice: number, row: number, price: number,
+): string | null {
+  if (prevPrice === price) return null;
+  return `Dòng ${row}: “${label}” đã có ở dòng ${prevRow} nhưng đơn giá khác nhau `
+    + `(${prevPrice.toLocaleString("vi-VN")} và ${price.toLocaleString("vi-VN")}). `
+    + `Mỗi công việc chỉ được một đơn giá — hãy đặt tên khác nhau cho hai loại, hoặc thống nhất một mức giá.`;
+}

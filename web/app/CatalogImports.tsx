@@ -67,7 +67,7 @@ export function PriceCatalogImport({ notify, onChanged }: { notify: Notify; onCh
       {busy && <div className="loading-text">Đang kiểm tra file…</div>}
       {error && <div className="toast error static-toast">{error}</div>}
       {preview && <div className="import-preview">
-        <strong>Đã kiểm tra: {preview.items.length} dòng đơn giá · {preview.categories.length} hạng mục Cấp 1</strong>
+        <strong>Đã kiểm tra: {preview.items.length} dòng đơn giá · {preview.categories.length} hạng mục Cấp 1{preview.duplicatesCollapsed > 0 && ` · gộp ${preview.duplicatesCollapsed} dòng trùng hệt nhau`}</strong>
         <span>SHA-256: {hash.slice(0, 16)}…</span>
         <div className="import-team-list">{preview.categories.slice(0, 20).map(c => <span className="badge badge-navy" key={c}>{c}</span>)}{preview.categories.length > 20 && <span className="badge badge-yellow">+{preview.categories.length - 20} hạng mục</span>}</div>
         <div className="table-wrap"><table><thead><tr><th>Cấp 1</th><th>Cấp 2</th><th>ĐV</th><th>Đơn giá tính toán</th><th>Đã duyệt (suy ra)</th></tr></thead><tbody>

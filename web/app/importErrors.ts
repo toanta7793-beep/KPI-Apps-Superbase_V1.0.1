@@ -12,7 +12,8 @@ export function rosterImportError(message:string){
 export function catalogImportError(message:string){
   if(/duplicate key value violates unique constraint|23505/.test(message))return "File này đã được nhập rồi — bạn vừa bấm nhiều lần. Hãy tải lại trang để xem kết quả.";
   if(/FORBIDDEN/.test(message))return "Chỉ tài khoản ADMIN được nhập danh mục/đơn giá/bảng lương.";
-  if(/DUPLICATE_PRICE_KEY/.test(message))return "File có dòng trùng khóa Hạng mục Cấp 1 + Nội dung Cấp 2. Mỗi khóa chỉ được xuất hiện một lần.";
+  if(/PRICE_CONFLICT_SAME_ITEM/.test(message))return "Có hai dòng cùng Hạng mục Cấp 1 và cùng Nội dung Cấp 2 nhưng KHÁC đơn giá: "+(message.split("PRICE_CONFLICT_SAME_ITEM: ")[1]||"").trim()+". Mỗi công việc chỉ được một đơn giá — đặt tên khác nhau cho hai loại, hoặc thống nhất một mức giá.";
+  if(/DUPLICATE_PRICE_KEY/.test(message))return "File có dòng trùng khóa Hạng mục Cấp 1 + Nội dung Cấp 2 với đơn giá khác nhau.";
   if(/MISSING_UNIT/.test(message))return "Có dòng thiếu Đơn vị.";
   if(/INVALID_PRICE_VALUE/.test(message))return "Có dòng đơn giá trống hoặc âm.";
   if(/ILLEGAL_LOOKUP_SEPARATOR/.test(message))return "Có ô chứa ký tự ‡ dành riêng cho khóa tra cứu của hệ thống.";
