@@ -16,8 +16,8 @@ export const metadata: Metadata = {
   title: "THI CÔNG KPI MEP — VINCONS",
   description: "VINCONS — điều hành giao việc, nhân sự, quỹ lương và KPI MEP theo thời gian thực.",
   icons: {
-    icon: "/favicon.svg",
-    shortcut: "/favicon.svg",
+    icon: "/favicon.png",
+    shortcut: "/favicon.png",
   },
 };
 

@@ -49,8 +49,8 @@ html, body { height: 100%; font-family: 'Segoe UI', -apple-system, BlinkMacSyste
 }
 #sidebar .logo-area .brand-logo {
   display: block; width: 150px; max-width: 90%; height: 116px; margin: 0 auto 8px;
-  object-fit: cover; object-position: center 62%;
-  border-radius: 14px; background: #14265d;
+  object-fit: contain;
+  border-radius: 14px; background: #263574;
   box-shadow: 0 0 24px rgba(15,30,74,.9), 0 6px 16px rgba(0,0,0,.2);
 }
 #sidebar .logo-area .app-title { font-size: 13px; font-weight: 700; letter-spacing: 1.5px; opacity: 0.9; }
@@ -59,8 +59,8 @@ html, body { height: 100%; font-family: 'Segoe UI', -apple-system, BlinkMacSyste
 .hero-sub .brand-logo,
 .phieu-header .brand-logo {
   display: inline-block; width: 64px; height: 49px; margin-right: 7px;
-  object-fit: cover; object-position: center 62%;
-  border-radius: 7px; background: #14265d; vertical-align: middle;
+  object-fit: contain;
+  border-radius: 7px; background: #263574; vertical-align: middle;
   box-shadow: 0 0 12px rgba(15,30,74,.55);
 }
 
