@@ -8,10 +8,11 @@ type Team = { id: string; leader_name: string; is_active: boolean };
 type Row = { team_id: string; team_name: string; role_name: string; worker_count: number; total_daily: number; status: string; unknown_workers: Array<{ mnv: string }> };
 const money = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 });
 
-// Quỹ lương của MỘT tổ tốn khoảng 200ms; lấy hết các tổ cùng lúc tốn ~1 giây CPU và
-// khi nhiều người mở trang cùng lúc thì chạm trần statement timeout của Postgres
-// (đo trên staging: 10 phiên đồng thời -> 10/10 thất bại). Vì vậy mặc định chỉ tải
-// tổ đang chọn; xem toàn bộ là thao tác phải bấm có chủ đích.
+// Mặc định chỉ tải tổ đang chọn (~200ms). Lấy hết 87 tổ tốn ~1 giây CPU và chạm trần
+// statement timeout của Postgres khi từ 8 người bấm cùng lúc (đo trên staging).
+// Sau migration 039 thì người dùng có phạm vi hẹp đã nhanh sẵn (1 tổ ~14ms, 3 tổ ~32ms),
+// nên chỉ còn ADMIN xem toàn bộ là tốn — và ô tick đó chỉ hiện với ADMIN.
+// canEdit ở đây chính là cờ ADMIN do KpiApp truyền xuống.
 export function TeamPayrollPanel({ teams, canEdit, onChanged, notify }: { teams: Team[]; canEdit: boolean; onChanged: () => Promise<void>; notify: (v: string) => void }) {
   const active = useMemo(() => teams.filter(t => t.is_active), [teams]);
   const [rows, setRows] = useState<Row[]>([]);
@@ -54,10 +55,10 @@ export function TeamPayrollPanel({ teams, canEdit, onChanged, notify }: { teams:
       <select className="form-control" value={effective} disabled={allTeams} onChange={e => setTeamId(e.target.value)}>
         {active.map(t => <option key={t.id} value={t.id}>{t.leader_name}</option>)}
       </select>
-      <label className="checkbox-line">
+      {canEdit && <label className="checkbox-line" title="Chỉ Quản trị viên. Tính quỹ lương cho toàn bộ tổ mất khoảng 1 giây và không nên nhiều người bấm cùng lúc.">
         <input type="checkbox" checked={allTeams} onChange={e => setAllTeams(e.target.checked)} />
-        <span>Xem tất cả {active.length} tổ (chậm hơn)</span>
-      </label>
+        <span>Xem tất cả {active.length} tổ (chậm hơn, chỉ Quản trị viên)</span>
+      </label>}
       {!ready && !error && <span className="loading-text">Đang tính quỹ lương…</span>}
     </div></div>
     {error && <div className="toast error static-toast">{error}</div>}

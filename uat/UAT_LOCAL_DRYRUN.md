@@ -469,6 +469,83 @@ Trước khi sửa, **10 phiên đã hỏng 10/10**. Sau khi sửa, 50 phiên ch
 - Máy đo cục bộ mạnh hơn instance staging, nên số trên staging sẽ xấu hơn. Cần **đo lại trên staging
   sau khi đẩy 038** để lấy con số thật.
 
+
+## F2f. Đo lại trên staging và migration 039 — phân quyền không tự làm truy vấn nhẹ đi
+
+### Đo 50 phiên trên chính staging (sau 037/038 + thay đổi B)
+
+| Tải | Đường mặc định (1 tổ) | Đường "Xem tất cả 87 tổ" |
+|---|---|---|
+| 10 phiên | p95 **557ms** · 0 lỗi | p95 9.283ms · **10/10 lỗi** |
+| 25 phiên | p95 **739ms** · 0 lỗi | p95 21.742ms · 19/25 lỗi |
+| 50 phiên | p95 **1.188ms** · **0 lỗi** | p95 42.005ms · 50/50 lỗi |
+
+Đường mặc định đã xử lý xong: trước đây 10 phiên hỏng 10/10, nay 50 phiên sạch.
+
+Ngưỡng chính xác của nút "Xem tất cả": an toàn tới **6 người bấm cùng lúc**, hỏng ở 8.
+Độ trễ tăng tuyến tính (1→1,8s, 2→2,3s, 4→4,2s, 6→6,6s, 8→9,1s) ⇒ truy vấn chạy
+**tuần tự trên một lõi**, mỗi lượt ~1,1 giây, đến người thứ 8 thì vượt trần 8 giây.
+
+### Migration 038 không cho thấy hiệu quả trên staging
+
+| | Cục bộ | Staging |
+|---|---|---|
+| Trước 038 | 1.150ms | ~1.010ms |
+| Sau 038 | **750ms** (−35%) | **~1.187ms** (không cải thiện) |
+
+Ghi đúng như đo được: trên hạ tầng staging, **038 gần như không đóng góp gì**; thứ thực sự
+giải quyết vấn đề là thay đổi B (luôn truyền `p_team_id` thay vì `null`) và sau đó là 039.
+Không nhận công cho một tối ưu không có tác dụng ở nơi nó cần có tác dụng.
+
+### 🔴 Phân quyền KHÔNG làm giảm khối lượng tính — điều này phản trực giác
+
+Câu hỏi từ chủ hệ thống: chỉ cho ADMIN xem tất cả, còn ai quản tổ nào chỉ xem tổ đó,
+như vậy có giải quyết được không? Đo trước khi trả lời:
+
+| Ai gọi `p_team_id = null` | Số tổ quản | Dòng trả về | Thời gian |
+|---|---|---|---|
+| ADMIN | 87 | 445 | 954–1.134ms |
+| GIAM_SAT | **3** | 15 | **714–909ms** |
+| TO_TRUONG | **1** | 5 | **777–836ms** |
+
+Một tổ trưởng quản đúng **một** tổ vẫn tốn ~800ms, gần bằng ADMIN xem cả 87 tổ.
+Lý do: `agg` và `unknowns` quét `app.v_worker_salary` cho **toàn bộ 1.089 công nhân** rồi mới
+join với `allowed`. Điều kiện quyền nằm trong hàm `app.can_access_team()` nên planner không đẩy
+xuống được; còn `p_team_id` là hằng số nên đẩy được — và đó là toàn bộ khác biệt giữa 800ms và 25ms.
+
+### Migration 039 — chốt phạm vi ra biến trước khi quét
+
+Lấy danh sách tổ được phép vào một biến `uuid[]`, rồi lọc view bằng biến đó. Với planner thì
+mảng đã có giá trị là hằng số nên đẩy được điều kiện vào phần quét.
+
+**Kết quả trả về không đổi, kiểm bằng EXCEPT hai chiều cho cả ba vai trò: 0 dòng lệch.**
+
+| Vai trò | Trước 039 | Sau 039 |
+|---|---|---|
+| ADMIN (87 tổ) | 954–1.134ms | 768–1.303ms — không đổi, đúng vì họ cần cả 87 tổ |
+| GIAM_SAT (3 tổ) | 714–909ms | **32ms** — nhanh hơn ~25 lần |
+| TO_TRUONG (1 tổ) | 777–836ms | **14ms** — nhanh hơn ~55 lần |
+
+Đo tải sau 039, người phạm vi hẹp gọi đúng kiểu cũ (`p_team_id = null`):
+
+| | 10 phiên | 25 phiên | 50 phiên |
+|---|---|---|---|
+| GIAM_SAT (3 tổ) | p95 217ms · 0 lỗi | p95 474ms · 0 lỗi | p95 796ms · 0 lỗi |
+| TO_TRUONG (1 tổ) | p95 421ms · 0 lỗi | p95 226ms · 0 lỗi | p95 485ms · 0 lỗi |
+
+### Giao diện: ô "Xem tất cả" chỉ hiện với ADMIN
+
+Theo quyết định của chủ hệ thống. Kết hợp với 039 thì đường đắt duy nhất còn lại là
+ADMIN xem toàn bộ ~1 giây, mà số tài khoản ADMIN chỉ vài người nên ngưỡng 6 người
+bấm đồng thời không còn là rủi ro thực tế.
+
+### Một quan sát cho lúc triển khai
+
+Lượt đo đầu tiên của GIAM_SAT hỏng 9/10. Chạy lại 3 lượt đều 0 lỗi (p95 118–217ms).
+Lần hỏng đó trùng đúng thời điểm `notify pgrst` trong migration 039 làm PostgREST nạp lại
+schema cache. **Đẩy migration khi đang có người dùng sẽ làm rớt một nhúm request đang bay** —
+nên chọn giờ vắng, hoặc báo trước.
+
 ## F3. Chưa kiểm thử ở bước này
 
 Các mục sau **chỉ chạy được sau khi có staging thật + có dữ liệu giả đầy đủ**, chưa PASS:
@@ -476,8 +553,8 @@ Các mục sau **chỉ chạy được sau khi có staging thật + có dữ li�
 - **Bản in PDF với nội dung dài**: đã đối chiếu cấu trúc cột với PGV_MAU.xlsx, nhưng chưa in thử nội dung dài để xem có bị cắt chữ không.
 - **Phục hồi ngược trên staging**: cơ chế đã chứng minh trọn vẹn ở môi trường cục bộ. Trên staging chưa chạy vì
   phục hồi cần quyền ghi thẳng vào bảng `jobs` — đúng thiết kế, chỉ người có quyền chạy SQL mới làm được.
-- **Đo lại tải trên staging sau khi đẩy 038**: các con số ở mục F2e đo trên máy cục bộ, mạnh hơn
-  instance staging. Phải chạy lại 50 phiên trên staging để lấy p95 thật.
+- **Đo lại tải trên staging sau khi đẩy 039**: các con số của 039 ở mục F2f đo trên máy cục bộ.
+  Phải chạy lại trên staging để xác nhận người dùng phạm vi hẹp cũng nhanh như đo được.
 - **Quân số nhiều mã nhóm**: đã kiểm ở tầng unit test; chưa dựng dữ liệu nhiều nhóm trên giao diện để đối chiếu số.
 - **Reset mật khẩu đầu-cuối**: endpoint chấp nhận yêu cầu, nhưng chưa mở email nhận link để đặt lại mật khẩu.
 - **Giao diện chạy trên chính staging**: đã kiểm chứng đầy đủ ở bản dựng cục bộ cùng commit; trên URL staging
