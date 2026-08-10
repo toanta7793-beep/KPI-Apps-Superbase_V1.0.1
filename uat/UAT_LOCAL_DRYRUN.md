@@ -295,14 +295,112 @@ anon không được cấp gì. Mọi bảng khác chỉ truy cập được qua
 
 Kết quả: thế quyền sau 036 **chặt hơn** cả môi trường cục bộ trước đó.
 
+
+## F2d. UAT trên STAGING thật (Supabase cloud + Cloudflare Worker)
+
+- URL: `https://kpi-enterprise-platform-web.toanta7793.workers.dev`
+- Supabase `kpi-vincons-staging`, migration 001→036, Auth đã cấu hình.
+- Phiên Admin lấy bằng `admin/generate_link` (magic link một lần) — **không dùng và không biết mật khẩu của ai**.
+- Giao diện đã kiểm chứng đầy đủ ở bản dựng cục bộ cùng commit; trên staging chạy qua HTTP để phủ thêm
+  phần **chưa từng chạy ở đâu**: hai route server của Worker và Storage thật.
+
+### Nạp dữ liệu bằng đúng 3 RPC nhập Excel
+
+| Nguồn | Kết quả |
+|---|---|
+| `Mau_Don_Gia.xlsx` | 6 dòng đơn giá · 5 hạng mục Cấp 1 (gồm "Đào tạo" và "Phát sinh") |
+| `Mau_Bang_Luong.xlsx` | 9 dòng ghi · 2 dòng lương 0 bỏ qua |
+| `Mau_Danh_Sach_CNCH.xlsx` | 3 công nhân · 2 tổ tự tạo · quỹ lương 653.846 đ/ngày cho Thợ bậc 2 |
+
+### Nghiệp vụ — khớp y hệt kết quả cục bộ
+
+| Kịch bản | Kết quả |
+|---|---|
+| Tuần 10 ngày | `INVALID_WEEK_RANGE_MAX_9_DAYS` — **PASS** |
+| Tuần 9 ngày | **PASS** |
+| Tuần chồng ngày | `SHARED_WEEK_OVERLAP` — **PASS** |
+| Hòa vốn (đối chiếu tay) | 3 ngày · đơn giá 52.000 · sản lượng 5.200.000 · chi phí 1.961.538,46 · chênh lệch 3.238.461,54 · điểm hòa vốn 37,72 — **PASS** |
+| Chống double-click tạo việc | cùng `request_key` → cùng id — **PASS** |
+| PGV chung 12 việc | 12 dòng — **PASS** |
+| Ngày giao = ngày nhận − 1 | 31/08 và 01/09 — **PASS** |
+| PGV CNCH nhận 03/09 | giao 02/09 — **PASS** |
+| Sửa việc (`update_job`) | khối lượng 1 → 77, đổi ngày và vị trí — **PASS** |
+
+### Hai route server của Worker — phần chưa từng chạy trước đó
+
+| Kịch bản | Kết quả |
+|---|---|
+| `/api/admin/users` với Admin | 200 — **PASS** |
+| `/api/admin/users` token rác | 403 `{"error":"FORBIDDEN"}` — **PASS** |
+| Tạo tài khoản GIAM_SAT + TO_TRUONG qua API | 200, gán đúng phạm vi tổ — **PASS** |
+| `/api/weeks/archive` (12 việc) | 200, upload Storage, finalize — **PASS** |
+| File trên Storage | 7.894 byte, **SHA-256 khớp phản hồi**, đọc lại đủ 12 dòng — **PASS** |
+| Sau archive | 12 việc xóa mềm — **PASS** |
+
+`/api/weeks/archive` chạy được **chứng minh secret binding của Cloudflare hoạt động** — route dùng
+`SUPABASE_SECRET_KEY` để upload lên Storage.
+
+### RBAC theo phạm vi tổ
+
+| Tài khoản | Phạm vi | Việc thấy | RPC chỉ-ADMIN | Dữ liệu tổ ngoài phạm vi |
+|---|---|---|---|---|
+| GIAM_SAT | 1 tổ | 12 (đúng tổ) | FORBIDDEN | FORBIDDEN |
+| TO_TRUONG | 1 tổ khác | 0 | FORBIDDEN | FORBIDDEN |
+
+Đọc bảng trực tiếp cũng bị RLS lọc đúng: mỗi tài khoản chỉ thấy 1 tổ, và 2 / 1 công nhân tương ứng.
+
+### Tải đồng thời và race
+
+| Kịch bản | Kết quả |
+|---|---|
+| 10 request song song **cùng** `request_key` | đúng **1 việc** được tạo — **PASS** |
+| 30 request song song, key khác nhau | 30/30 thành công trong **0,5 giây**, đủ 31 việc — **PASS** |
+| 10 lệnh gộp tuần song song cùng bộ việc | đúng 1 lệnh thắng, còn lại `JOB_ALREADY_IN_WEEK`, **31/31 việc được gán, không gán một phần** — **PASS** |
+| 8 lệnh nhập đơn giá song song cùng `request_key` | đúng **1 lần ghi thật**, còn lại trả kết quả cũ hoặc 409 — **PASS** |
+
+### Ba phát hiện nhỏ trong vòng này
+
+1. **Cloudflare chặn client không phải trình duyệt.** Mọi request tới `/api/*` từ script không có
+   User-Agent trình duyệt bị trả `403 error code 1010` (browser integrity check của Cloudflare, không phải
+   app). Ai viết script tích hợp về sau phải biết điều này, nếu không sẽ chẩn đoán nhầm thành lỗi phân quyền.
+   *Chính tôi đã chẩn đoán nhầm một lần: sửa `vite.config.ts` thêm `vars` cho Worker vì tưởng thiếu biến môi
+   trường. Kiểm tra lại bundle cho thấy `process.env.NEXT_PUBLIC_*` đã được nội tuyến lúc build (chỉ
+   `SUPABASE_SECRET_KEY` mới tra lúc chạy), nên thay đổi đó là thừa và đã được gỡ bỏ.*
+
+2. **Bấm nhiều lần rất nhanh trả về lỗi kỹ thuật thô.** Race trên `request_key` cho ra
+   `duplicate key value violates unique constraint "uq_jobs_request_key"` — trong khi thực chất thao tác
+   **đã thành công**. Đã thêm bản dịch vào `operationError` và `catalogImportError`.
+
+3. **Mã HTTP khi từ chối quyền không nhất quán.** 20/34 chỗ `raise FORBIDDEN` có kèm `errcode='42501'`
+   (PostgREST trả 403), 14 chỗ không kèm (trả 400). Truy cập **vẫn bị chặn đúng** trong cả hai trường hợp và
+   hàm dịch lỗi bắt theo nội dung nên người dùng thấy đúng thông báo. Đây là vấn đề nhất quán, không phải lỗ hổng.
+
+### Trạng thái staging sau khi dọn dẹp
+
+Toàn bộ dữ liệu test đã được xóa qua đúng luồng backup→archive→xóa (không xóa cứng dòng nào),
+2 tài khoản UAT đã xóa.
+
+| | |
+|---|---|
+| Tài khoản | chỉ còn `royalle.manager@gmail.com` (ADMIN) |
+| Hạng mục Cấp 1 | 6 |
+| Tổ / công nhân | 2 / 3 |
+| Việc đang giao | 0 |
+| Bảng lương | có dữ liệu mẫu |
+
 ## F3. Chưa kiểm thử ở bước này
 
 Các mục sau **chỉ chạy được sau khi có staging thật + có dữ liệu giả đầy đủ**, chưa PASS:
 
 - **Bản in PDF với nội dung dài**: đã đối chiếu cấu trúc cột với PGV_MAU.xlsx, nhưng chưa in thử nội dung dài để xem có bị cắt chữ không.
-- **Tải đồng thời**: chưa chạy nhiều phiên song song; chưa đo p95 RPC, deadlock, connection saturation.
+- **Phục hồi ngược trên staging**: cơ chế đã chứng minh trọn vẹn ở môi trường cục bộ. Trên staging chưa chạy vì
+  phục hồi cần quyền ghi thẳng vào bảng `jobs` — đúng thiết kế, chỉ người có quyền chạy SQL mới làm được.
+- **Tải đồng thời quy mô thật**: đã chạy 30 request song song; chưa chạy 50 phiên như khuyến nghị trong
+  PACKAGE_QA_REPORT, chưa đo p95 RPC / deadlock / connection saturation.
 - **Quân số nhiều mã nhóm**: đã kiểm ở tầng unit test; chưa dựng dữ liệu nhiều nhóm trên giao diện để đối chiếu số.
-- **Reset mật khẩu / hết hạn phiên**: chưa chạy (cần SMTP thật ở staging).
+- **Reset mật khẩu đầu-cuối**: endpoint chấp nhận yêu cầu, nhưng chưa mở email nhận link để đặt lại mật khẩu.
+- **Giao diện chạy trên chính staging**: đã kiểm chứng đầy đủ ở bản dựng cục bộ cùng commit; trên URL staging
+  mới chỉ xác nhận trang đăng nhập render và các API trả đúng.
 
 ## G. Rollback
 

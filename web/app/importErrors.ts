@@ -10,6 +10,7 @@ export function rosterImportError(message:string){
 }
 
 export function catalogImportError(message:string){
+  if(/duplicate key value violates unique constraint|23505/.test(message))return "File này đã được nhập rồi — bạn vừa bấm nhiều lần. Hãy tải lại trang để xem kết quả.";
   if(/FORBIDDEN/.test(message))return "Chỉ tài khoản ADMIN được nhập danh mục/đơn giá/bảng lương.";
   if(/DUPLICATE_PRICE_KEY/.test(message))return "File có dòng trùng khóa Hạng mục Cấp 1 + Nội dung Cấp 2. Mỗi khóa chỉ được xuất hiện một lần.";
   if(/MISSING_UNIT/.test(message))return "Có dòng thiếu Đơn vị.";
@@ -78,6 +79,7 @@ const OPERATION_MESSAGES:Array<[RegExp,string]>=[
   [/ARCHIVE_OPERATION_NOT_FOUND/,"Không tìm thấy thao tác backup. Hãy bấm lại nút Backup & Xóa Tuần."],
   [/INVALID_EXCEL_BACKUP_SIZE/,"File backup rỗng hoặc quá lớn nên hệ thống KHÔNG xóa gì."],
   [/SERVER_ARCHIVE_NOT_CONFIGURED/,"Máy chủ chưa cấu hình khóa quản trị cho chức năng backup. Liên hệ quản trị hệ thống."],
+  [/duplicate key value violates unique constraint.*request_key|23505.*request_key/,"Thao tác này đã được ghi nhận rồi — bạn vừa bấm nhiều lần. Hãy tải lại trang để xem kết quả, đừng làm lại từ đầu."],
   // Chung
   [/FORBIDDEN/,"Bạn không có quyền thực hiện thao tác này, hoặc Tổ này nằm ngoài phạm vi của bạn."],
   [/TEAM_NOT_ACTIVE/,"Tổ này không còn hoạt động."],
