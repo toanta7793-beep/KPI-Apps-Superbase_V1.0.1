@@ -241,6 +241,60 @@ Công cụ phục hồi **cố ý không tự kết nối và không tự chạy
 với `ON_ERROR_STOP` để người có quyền đọc lại rồi tự chạy. Nếu file backup thiếu cột bắt buộc
 (file do bản cũ sinh ra), script dừng và nói rõ file đó không phục hồi đầy đủ được.
 
+
+## F2c. Apply lên STAGING và lỗi chặn triển khai phát hiện tại đó
+
+- Project: `kpi-vincons-staging`, ref `wqnq…vxau`, vùng `ap-southeast-1`, tạo 10/08/2026, Postgres 17.6.1.
+- Đã link. Project `uxmj…uoub` (Sydney) trong cùng tài khoản **không bị đụng tới**.
+- Người dùng chạy `db push --include-seed`: **32/32 migration 001→035 áp thành công**, seed chạy xong.
+
+### 🔴 Frontend không đọc được dữ liệu trên cloud — chặn triển khai (migration 036)
+
+Ngay sau khi apply, kiểm tra qua Data API cho thấy `authenticated` **không có quyền nào** trên
+bảng `public`. Frontend đọc thẳng 4 bảng (không qua RPC):
+
+| Nơi gọi | Bảng | Thao tác |
+|---|---|---|
+| `KpiApp.tsx:61` | `teams` | select |
+| `KpiApp.tsx:62` | `workers` | select + embed `teams` |
+| `KpiApp.tsx:64` | `work_weeks` | select + embed `teams` |
+| `KpiApp.tsx:77` | `profiles` | select + embed `workers`→`teams` |
+| `KpiApp.tsx:160` | `teams` | **update** `is_active` (nút "Kích Hoạt Tổ") |
+
+Supabase cloud hiện nay **không tự cấp quyền Data API cho bảng mới** trong `public`
+(đúng như ghi chú `auto_expose_new_tables` trong `config.toml`), và **không migration nào cấp quyền**
+các bảng này. Hệ quả trên staging: mọi lệnh đọc trên trả **401**, ứng dụng không tải nổi
+danh sách Tổ, công nhân, tuần hay hồ sơ người dùng.
+
+**Vì sao chạy cục bộ không lộ ra:** image Postgres của Supabase CLI vẫn giữ hành vi cũ —
+`authenticated` được cấp sẵn **SELECT, INSERT, UPDATE, DELETE, TRUNCATE trên mọi bảng public**.
+Môi trường cục bộ **rộng quyền hơn** cloud, nên "chạy được ở máy" không chứng minh quyền đã đúng.
+
+**Migration 036 không sao chép hành vi cục bộ.** Nó thu hồi sạch rồi cấp đúng phần cần:
+
+```
+revoke all on all tables in schema public from anon, authenticated;
+grant select on teams, workers, work_weeks, profiles to authenticated;
+grant update (is_active, updated_at, updated_by) on teams to authenticated;
+```
+
+anon không được cấp gì. Mọi bảng khác chỉ truy cập được qua RPC SECURITY DEFINER.
+
+### Kiểm chứng sau khi áp 036 tại chỗ (mô phỏng đúng thế quyền của cloud)
+
+| Kịch bản | Kỳ vọng | Kết quả |
+|---|---|---|
+| Đọc `teams` / `workers` / `work_weeks` / `profiles` | Được, RLS lọc dòng | **PASS** (2 / 3 / 4 / 3 dòng) |
+| Đọc `jobs`, `price_items` trực tiếp | **Bị chặn** | **PASS** (403) |
+| Ghi `teams.is_active` | Được | **PASS** (204) |
+| Ghi `teams.leader_name` | **Bị chặn** | **PASS** (403 — quyền cấp theo CỘT) |
+| `anon` (chưa đăng nhập) đọc bảng nghiệp vụ | Bị chặn | **PASS** (401) |
+| `anon` gọi RPC | Bị chặn | **PASS** (401) |
+| 6 RPC chính sau khi siết quyền | Chạy bình thường | **PASS** (get_my_access, get_job_metrics, get_catalog_cap1, get_shared_work_weeks, get_payroll_summary, preview_job_metrics) |
+| Ứng dụng sau khi siết quyền | Đăng nhập, nhận vai trò, hiện menu Quản Trị | **PASS** |
+
+Kết quả: thế quyền sau 036 **chặt hơn** cả môi trường cục bộ trước đó.
+
 ## F3. Chưa kiểm thử ở bước này
 
 Các mục sau **chỉ chạy được sau khi có staging thật + có dữ liệu giả đầy đủ**, chưa PASS:
