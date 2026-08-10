@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "KPI MEP — Enterprise Platform",
-  description: "Điều hành giao việc, nhân sự, quỹ lương và KPI MEP theo thời gian thực.",
+  title: "THI CÔNG KPI MEP — VINCONS",
+  description: "VINCONS — điều hành giao việc, nhân sự, quỹ lương và KPI MEP theo thời gian thực.",
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",

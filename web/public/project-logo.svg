@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="160" height="48" viewBox="0 0 160 48" role="img" aria-label="Project logo placeholder">
-  <rect width="160" height="48" rx="8" fill="#12215a"/>
-  <text x="80" y="30" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#ffffff">KPI MEP</text>
+<!-- PLACEHOLDER: thay bằng logo VINCONS chính thức khi nhận được file. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="300" height="232" viewBox="0 0 300 232" role="img" aria-label="VINCONS">
+  <rect width="300" height="232" rx="20" fill="#121D4E"/>
+  <rect x="14" y="14" width="272" height="204" rx="14" fill="none" stroke="#2A3D8F" stroke-width="2"/>
+  <text x="150" y="106" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="46" font-weight="700" letter-spacing="4" fill="#FFFFFF">VINCONS</text>
+  <line x1="70" y1="126" x2="230" y2="126" stroke="#5BC4E0" stroke-width="3" stroke-linecap="round"/>
+  <text x="150" y="158" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="19" font-weight="600" letter-spacing="2" fill="#A0DCF0">THI CÔNG</text>
+  <text x="150" y="184" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="19" font-weight="600" letter-spacing="2" fill="#A0DCF0">KPI MEP</text>
 </svg>

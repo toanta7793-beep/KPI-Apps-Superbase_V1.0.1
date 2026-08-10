@@ -1,4 +1,4 @@
-/* ====== ĐƠN VỊ THI CÔNG DESIGN SYSTEM ====== */
+/* ====== VINCONS · THI CÔNG KPI MEP · DESIGN SYSTEM ====== */
 :root {
   --vc-navy: #1B2A6B;
   --vc-navy-dark: #121D4E;
@@ -47,7 +47,7 @@ html, body { height: 100%; font-family: 'Segoe UI', -apple-system, BlinkMacSyste
   border-bottom: 1px solid rgba(255,255,255,0.1);
   text-align: center;
 }
-#sidebar .logo-area .vincons-logo {
+#sidebar .logo-area .brand-logo {
   display: block; width: 150px; max-width: 90%; height: 116px; margin: 0 auto 8px;
   object-fit: cover; object-position: center 62%;
   border-radius: 14px; background: #14265d;
@@ -56,8 +56,8 @@ html, body { height: 100%; font-family: 'Segoe UI', -apple-system, BlinkMacSyste
 #sidebar .logo-area .app-title { font-size: 13px; font-weight: 700; letter-spacing: 1.5px; opacity: 0.9; }
 #sidebar .logo-area .app-sub { font-size: 11px; opacity: 0.6; margin-top: 2px; }
 
-.hero-sub .vincons-logo,
-.phieu-header .vincons-logo {
+.hero-sub .brand-logo,
+.phieu-header .brand-logo {
   display: inline-block; width: 64px; height: 49px; margin-right: 7px;
   object-fit: cover; object-position: center 62%;
   border-radius: 7px; background: #14265d; vertical-align: middle;
