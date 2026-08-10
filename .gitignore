@@ -23,3 +23,8 @@ web/tsconfig.tsbuildinfo
 web/dist/
 
 .claude/
+
+# Thư mục chứa file dump — KHÔNG bao giờ commit
+backup/*.dump
+backup/*.sha256
+backup/backup.log

@@ -4,3 +4,7 @@
 *.png binary
 *.xlsx binary
 *.ttf binary
+
+# PowerShell 5.1 doc .ps1 theo ANSI neu khong co BOM, nen 2 file .ps1 duoc luu kem BOM
+# (BOM la noi dung file, Git giu nguyen). CRLF cho dung quy uoc PowerShell tren Windows.
+*.ps1 text eol=crlf

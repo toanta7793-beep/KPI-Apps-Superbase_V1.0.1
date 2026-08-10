@@ -46,6 +46,38 @@ Nếu về sau muốn người dùng tự khôi phục, cần bổ sung hai màn
 (gọi `resetPasswordForEmail`) và màn hình đặt mật khẩu mới khi phiên đến từ link `type=recovery`
 (gọi `updateUser({ password })`).
 
+## 2c. Sao lưu — KHÔNG có backup phía Supabase
+
+Quyết định ngày 11/08/2026: không mua gói trả phí của Supabase. Hệ quả phải nói thẳng:
+
+> **Phía Supabase không có bản backup tự động nào.** Nếu dữ liệu mất mà không có bản dump
+> tự quản thì không có nút khôi phục nào cả.
+
+Bù lại bằng `pg_dump` chạy theo lịch, đặt trong `backup/`:
+
+| Việc | File |
+|---|---|
+| Sao lưu hằng ngày, giữ 30 bản, kèm SHA-256 | `backup/kpi_backup.ps1` |
+| Khôi phục, có chốt chặn chống dùng sai | `backup/kpi_restore.ps1` |
+| Cài đặt, lịch chạy, quy trình diễn tập | `backup/README.md` |
+
+Ba điểm bắt buộc nhớ:
+
+1. **Khôi phục là quy trình HAI bước.** `pg_restore --clean` không dùng được trên Supabase
+   (chi tiết lỗi ghi trong `backup/README.md`). Phải dựng cấu trúc bằng migration trước,
+   rồi mới nạp dữ liệu.
+2. **Tài khoản đăng nhập không nằm trong bản backup.** Mất project thì mời lại người dùng.
+3. **File trong Supabase Storage cũng không nằm trong đó.** Tải riêng.
+
+Đã diễn tập thật ngày 11/08/2026 với 1.089 công nhân: xóa 1.000 công nhân, xóa sạch bảng
+lương, xóa hẳn bảng `price_items`, rồi khôi phục — checksum khớp từng ký tự, 0 khóa ngoại
+mồ côi. Diễn tập lại mỗi quý.
+
+Ngoài ra ứng dụng còn tự sao lưu Excel trước mỗi lần xóa tuần, và chụp snapshot trước mỗi
+lần nhập đơn giá / bảng lương / danh sách công nhân. Những lớp đó xử lý các tình huống hay
+gặp nhất; bản dump là để phòng những thứ đi vòng qua ứng dụng, ví dụ ai đó chạy nhầm lệnh
+trong SQL Editor.
+
 ## 3. UAT
 
 - Nạp dữ liệu giả lập trước; chạy toàn bộ docs/UAT_CHECKLIST.md.
