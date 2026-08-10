@@ -68,6 +68,17 @@ export async function parseCnchWorkbook(file:File):Promise<CnchWorkbook>{
   throw new Error("Không nhận diện được các cột Mã nhân viên, Họ và tên, Chức vụ, Tên Tổ và Dự án.");
 }
 
+/** Đọc mọi worksheet của file .xlsx thành mảng dòng/ô dạng chuỗi. */
+export async function readSheetRows(file:File,maxMb=12):Promise<Array<{path:string;rows:string[][]}>>{
+  if(!/\.xlsx$/i.test(file.name))throw new Error("Chỉ chấp nhận file Excel .xlsx.");
+  if(file.size<=0||file.size>maxMb*1024*1024)throw new Error(`File Excel rỗng hoặc vượt quá ${maxMb} MB.`);
+  const files=unzipSync(new Uint8Array(await file.arrayBuffer()));
+  const shared=sharedStrings(files);
+  return Object.entries(files)
+    .filter(([path])=>/^xl\/worksheets\/sheet\d+\.xml$/.test(path))
+    .map(([path,source])=>({path,rows:rowsFromSheet(source,shared)}));
+}
+
 export async function sha256Hex(file:File){
   const digest=await crypto.subtle.digest("SHA-256",await file.arrayBuffer());
   return Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,"0")).join("");

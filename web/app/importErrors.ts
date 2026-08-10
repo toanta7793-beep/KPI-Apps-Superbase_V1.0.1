@@ -8,3 +8,23 @@ export function rosterImportError(message:string){
   if(/UPDATE requires a WHERE clause/.test(message))return "Máy chủ đang dùng phiên bản RPC nhập Excel cũ. Hãy tải lại trang rồi thử lại.";
   return message;
 }
+
+export function catalogImportError(message:string){
+  if(/FORBIDDEN/.test(message))return "Chỉ tài khoản ADMIN được nhập danh mục/đơn giá/bảng lương.";
+  if(/DUPLICATE_PRICE_KEY/.test(message))return "File có dòng trùng khóa Hạng mục Cấp 1 + Nội dung Cấp 2. Mỗi khóa chỉ được xuất hiện một lần.";
+  if(/MISSING_UNIT/.test(message))return "Có dòng thiếu Đơn vị.";
+  if(/INVALID_PRICE_VALUE/.test(message))return "Có dòng đơn giá trống hoặc âm.";
+  if(/ILLEGAL_LOOKUP_SEPARATOR/.test(message))return "Có ô chứa ký tự ‡ dành riêng cho khóa tra cứu của hệ thống.";
+  if(/INVALID_PRICE_ROW/.test(message))return "Có dòng thiếu Hạng mục Cấp 1 hoặc Nội dung công việc Cấp 2.";
+  if(/INVALID_PRICE_CATALOG_SIZE/.test(message))return "Danh mục đơn giá phải có từ 1 đến 20.000 dòng.";
+  if(/DUPLICATE_SALARY_KEY/.test(message))return "File có dòng trùng khóa Hệ + Chức danh.";
+  if(/AMBIGUOUS_SYSTEM_NAME/.test(message))return "Có hai cách viết khác nhau cho cùng một Hệ. Hãy viết thống nhất một cách.";
+  if(/AMBIGUOUS_GRADE_NAME/.test(message))return "Có hai cách viết khác nhau cho cùng một Chức danh. Hãy viết thống nhất một cách.";
+  if(/NEGATIVE_SALARY/.test(message))return "Có dòng mức lương âm.";
+  if(/INVALID_SALARY_ROW/.test(message))return "Có dòng thiếu Hệ hoặc Chức danh.";
+  if(/INVALID_SALARY_TABLE_SIZE/.test(message))return "Bảng lương phải có từ 1 đến 5.000 dòng.";
+  if(/UNRESOLVED_SYSTEM_OR_GRADE/.test(message))return "Không tạo hoặc không tìm được Hệ/Chức danh tương ứng. Kiểm tra lại cách viết trong file.";
+  if(/INVALID_SOURCE_HASH|IMPORT_METADATA_REQUIRED/.test(message))return "Thiếu thông tin nhận dạng file. Hãy chọn lại file rồi thử lại.";
+  if(/Could not find the function|schema cache/.test(message))return "Máy chủ chưa có RPC nhập danh mục (migration 032/033). Hãy chạy migration rồi tải lại trang.";
+  return message;
+}

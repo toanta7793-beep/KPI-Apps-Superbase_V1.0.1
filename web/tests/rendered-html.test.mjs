@@ -19,8 +19,9 @@ test("server-renders the KPI MEP Supabase application shell", async () => {
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
   const html = await response.text();
-  assert.match(html, /<title>KPI MEP[^<]*<\/title>/i);
+  assert.match(html, /<title>[^<]*KPI MEP[^<]*<\/title>/i);
   assert.match(html, /KPI MEP/);
+  assert.match(html, /VINCONS/);
   assert.match(html, /Quản lý Giao Việc &amp; Định Mức MEP/);
   assert.doesNotMatch(html, /Your site is taking shape/);
   assert.doesNotMatch(html, /service_role/i);

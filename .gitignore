@@ -17,3 +17,7 @@ config/project.local.json
 supabase/.temp/
 uat/evidence/**/*.xlsx
 uat/evidence/**/*.pdf
+
+# build artifacts
+web/tsconfig.tsbuildinfo
+web/dist/
