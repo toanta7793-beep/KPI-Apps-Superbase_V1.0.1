@@ -1,0 +1,13 @@
+"use client";
+
+import {useEffect,useMemo,useState} from "react";
+import {supabase} from "../lib/supabase";
+import {calculateStaffingCoverage,StaffingJob as Job,StaffingPayrollRow as PayrollRow} from "./staffingCoverageLogic";
+
+export function StaffingCoverage({teamId,teamName,jobs}:{teamId:string;teamName:string;jobs:Job[]}){
+  const [payroll,setPayroll]=useState<PayrollRow[]>([]),[error,setError]=useState(""),[loading,setLoading]=useState(false);
+  useEffect(()=>{if(!teamId){const timer=window.setTimeout(()=>{setPayroll([]);setError("");setLoading(false)},0);return()=>window.clearTimeout(timer)}let active=true;const timer=window.setTimeout(()=>setLoading(true),0);void supabase.rpc("get_payroll_summary",{p_team_id:teamId}).then(({data,error})=>{if(!active)return;setLoading(false);if(error){setError(error.message);setPayroll([])}else{setError("");setPayroll((data||[]) as PayrollRow[])}});return()=>{active=false;window.clearTimeout(timer)}},[teamId]);
+  const coverage=useMemo(()=>calculateStaffingCoverage(jobs.filter(job=>job.team_id===teamId),payroll),[jobs,payroll,teamId]);
+  if(!teamId)return <div className="staffing-hint">ℹ️ Chọn một Tổ để xem kiểm soát quân số đã giao theo bậc.</div>;
+  return <section className={`staffing-card ${coverage.balanced?"balanced":"attention"}`} aria-label={`Kiểm soát quân số giao việc — ${teamName}`}><div className="staffing-head"><strong>👥 Kiểm soát quân số giao việc — {teamName}</strong><span className={`badge ${coverage.balanced?"badge-green":"badge-red"}`}>{coverage.balanced?"🟢 ĐÃ GIAO ĐỦ":"🔴 CẦN KIỂM TRA"}</span></div>{loading?<div className="staffing-loading">Đang đối chiếu quân số…</div>:error?<div className="login-error">{error}</div>:<><div className="table-wrap"><table className="staffing-table"><thead><tr><th>Bậc</th><th>Quân số</th><th>Đã giao</th><th>Kết quả</th></tr></thead><tbody>{coverage.rows.map(row=>{const result=row.difference>0?`Thiếu ${row.difference}`:row.difference<0?`Vượt ${Math.abs(row.difference)}`:"Đủ";return <tr key={row.role}><td><strong>{row.role}</strong></td><td>{row.headcount}</td><td>{row.assigned}</td><td className={row.difference===0?"staffing-ok":"staffing-bad"}>{result}</td></tr>})}</tbody></table></div>{(coverage.unknownCount>0||coverage.issues.length>0)&&<div className="staffing-warning">{coverage.unknownCount>0&&<div>⛔ {coverage.unknownCount} CNCH chưa xác định Hệ/Bậc.</div>}{coverage.issues.map(issue=><div key={issue}>⛔ {issue}</div>)}</div>}<div className="staffing-note">Mỗi dòng không có mã nhóm được tính một lần; các dòng cùng mã nhóm chỉ tính chung một cơ cấu nhân sự. Tổ trưởng không tham gia phép kiểm soát này.</div></>}</section>;
+}

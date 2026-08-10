@@ -1,0 +1,17 @@
+{
+  "appName": "KPI MEP",
+  "companyName": "ĐƠN VỊ THI CÔNG",
+  "defaultProject": "DỰ ÁN MẪU",
+  "timezone": "Asia/Ho_Chi_Minh",
+  "dateFormat": "dd/MM/yyyy",
+  "weekSlots": 4,
+  "maxWeekDaysInclusive": 9,
+  "staging": {
+    "supabaseRef": "NEW_STAGING_REF",
+    "siteUrl": "https://NEW-STAGING.example"
+  },
+  "production": {
+    "supabaseRef": "NEW_PRODUCTION_REF",
+    "siteUrl": "https://NEW-PRODUCTION.example"
+  }
+}
