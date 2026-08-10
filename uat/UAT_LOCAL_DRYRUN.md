@@ -101,17 +101,96 @@ Sau khi sửa, `supabase db reset` áp lại 001→033 từ đầu và nhập l�
 2. **Tên lỗi `JOB_MUST_FIT_SHARED_WEEK` gây hiểu nhầm** — nó bắn ra cả khi việc *đã* thuộc một tuần,
    không liên quan tới chuyện ngày có nằm trong tuần hay không.
 
-## F. Chưa kiểm thử ở bước này
+
+## F2. Vòng UAT thứ hai — 034/035, xóa tuần thành công, nhóm việc, RBAC theo tổ
+
+### 🔴 Lỗ hổng phân quyền — nghiêm trọng, đã vá (migration 035)
+
+`app.current_role()` trả **NULL** khi người dùng có JWT hợp lệ nhưng không có profile đang hoạt động
+(tài khoản vừa tạo chưa gán quyền, profile bị vô hiệu hóa, hoặc bị xóa trong khi phiên còn hạn).
+
+Trong SQL, `NULL <> 'ADMIN'` cho ra **NULL chứ không phải TRUE**, nên mọi câu lệnh dạng
+
+```sql
+if app.current_role() <> 'ADMIN' then raise exception 'FORBIDDEN'; end if;
+if app.current_role() not in ('ADMIN','GIAM_SAT','TO_TRUONG') then ... end if;
+```
+
+**đều bị bỏ qua**. Toàn hệ thống có **29 chỗ kiểm tra quyền dạng phủ định** như vậy:
+26 chỗ nằm trong migration của **kit gốc** (022, 024×13, 025, 028×4, 029×3, 030×3),
+3 chỗ trong code mới (032, 033, 034).
+
+**Bằng chứng khai thác:** một tài khoản không có profile đã ghi thành công một dòng vào
+`public.price_items` qua `admin_import_price_catalog`, và `app.price_catalog_import_backups`
+ghi lại `imported_by` chính là tài khoản đó. Dòng rác đã được xóa sau khi kiểm chứng.
+
+**Cách vá:** sửa tại gốc thay vì viết lại 29 hàm — `app.current_role()` trả **chuỗi rỗng** thay cho NULL.
+Khi đó `'' <> 'ADMIN'` là TRUE nên mọi guard phủ định hoạt động trở lại, còn so sánh khẳng định
+(`'' = 'ADMIN'`) vẫn cho FALSE như cũ. Kèm theo phải sửa policy `p_shared_week_select` (migration 030)
+vì nó dùng `current_role() is not null` — với chuỗi rỗng thì điều kiện đó luôn đúng và sẽ mở quyền đọc.
+
+> ⚠️ **Cần báo cho chủ hệ thống nguồn.** 26/29 chỗ này đến từ kit gốc, nên hệ thống KPI VINCONS
+> đang chạy nhiều khả năng cũng có lỗ hổng tương tự. Bản sao này không đụng tới hệ thống đó;
+> việc xử lý bên nguồn là quyết định của bạn.
+
+### Kết quả sau khi vá
+
+| Kịch bản | Kỳ vọng | Kết quả |
+|---|---|---|
+| Tài khoản **không có profile** gọi `admin_import_price_catalog` | 403 FORBIDDEN | **PASS** |
+| Tài khoản **không có profile** gọi `admin_import_salary_standard` | 403 FORBIDDEN | **PASS** |
+| Tài khoản **không có profile** đọc `shared_work_weeks` / `jobs` | Trả về rỗng | **PASS** |
+| ADMIN sau khi vá | Mọi thao tác vẫn chạy | **PASS** (11/11 test, lint sạch, tsc = baseline) |
+| GIAM_SAT phạm vi Tổ MEP 01 | Thấy 1 tổ, 3 việc của đúng tổ đó | **PASS** |
+| GIAM_SAT gọi RPC chỉ-ADMIN | FORBIDDEN | **PASS** |
+| GIAM_SAT xem PGV tổ ngoài phạm vi | FORBIDDEN | **PASS** |
+| TO_TRUONG phạm vi Tổ MEP 02 | Thấy 1 tổ, 0 việc (tổ này chưa có việc) | **PASS** |
+| TO_TRUONG gọi RPC chỉ-ADMIN / PGV ngoài phạm vi | FORBIDDEN cả hai | **PASS** |
+
+### Mã lỗi rõ nghĩa (migration 034)
+
+| Kịch bản | Trước | Sau |
+|---|---|---|
+| Gộp việc **đã thuộc** một tuần | `JOB_MUST_FIT_SHARED_WEEK` | `JOB_ALREADY_IN_WEEK` — **PASS** |
+| Gộp việc có **ngày ngoài** khoảng tuần | `JOB_MUST_FIT_SHARED_WEEK` | `JOB_DATES_OUTSIDE_SHARED_WEEK` — **PASS** |
+
+Kèm `operationError()` trong `app/importErrors.ts`: 40+ mã lỗi Tuần / Giao việc / Nhóm việc / Xóa tuần
+được dịch sang tiếng Việt, đã nối vào `KpiApp`, `JobEditorModal`, `WeekArchiveButton`.
+
+### Nhóm việc và sửa việc
+
+| Kịch bản | Kỳ vọng | Kết quả |
+|---|---|---|
+| Gộp 2 việc **khác vị trí** | Từ chối | **PASS** (`GROUP_LOCATION_MISMATCH`) |
+| Gộp 2 việc giống hệt | Sinh mã `MN-YYYYMMDD-NN` | **PASS** (`MN-20260905-01`) |
+| Sau khi gộp | **Không mất dòng nào** | **PASS** (15 việc trước và sau) |
+| Sửa việc **đang trong nhóm** | Từ chối | **PASS** (`REMOVE_GROUP_BEFORE_EDIT`) |
+| Hủy nhóm | Không mất dòng | **PASS** (vẫn 15 việc, 0 mã nhóm) |
+| Sửa việc **sau khi** hủy nhóm | Lưu được | **PASS** (khối lượng 20 → 99) |
+
+### Xóa tuần — đường thành công (qua giao diện, đủ chuỗi backup → archive → verify → delete)
+
+| Bước kiểm chứng | Kết quả |
+|---|---|
+| Thao tác archive | `COMPLETED`, `row_count = 12`, có `backup_path` và `backup_sha256` | 
+| File backup trên Storage | Có, đường dẫn `<team_id>/<week_id>/<operation_id>.xlsx` |
+| Đọc lại file backup | Mở được, sheet `BACKUP_TUAN`, **1 header + 12 dòng việc — khớp `row_count`** |
+| Việc trong tuần | 12 việc **xóa mềm**, 3 việc ngoài tuần còn nguyên |
+| Tuần của Tổ MEP 01 | `ARCHIVED` |
+| Tuần của **Tổ MEP 02** | vẫn `ACTIVE` — **backup đúng phạm vi tổ, không lan sang tổ khác** |
+| Thao tác archive thất bại trước đó | vẫn treo `PENDING`, chưa từng xóa gì |
+
+**Consistency Web–RPC–PostgreSQL–file backup: khớp trên số dòng (12).**
+
+## F3. Chưa kiểm thử ở bước này
 
 Các mục sau **chỉ chạy được sau khi có staging thật + có dữ liệu giả đầy đủ**, chưa PASS:
 
-- **Sửa việc** đã lưu (`update_job`) và **gộp/hủy mã nhóm** — chưa chạy.
-- **Xóa tuần đường thành công**: backup → archive → verify → delete. Mới chỉ chứng minh nhánh THẤT BẠI không xóa gì.
-- **Khôi phục backup**: chưa thử phục hồi từ file Excel/snapshot đã ghi.
-- **Bản in/PDF**: chưa kiểm tra bố cục có bị cắt nội dung dài, chưa đối chiếu với PGV_MAU.xlsx.
+- **Khôi phục ngược từ backup**: đã chứng minh file backup đọc lại được và khớp số dòng, nhưng **chưa** thử nạp ngược vào DB để phục hồi một tuần đã xóa.
+- **Bản in / PDF**: chưa kiểm tra bố cục có bị cắt nội dung dài, chưa đối chiếu với PGV_MAU.xlsx.
 - **Tải đồng thời**: chưa chạy nhiều phiên song song; chưa đo p95 RPC, deadlock, connection saturation.
-- **RBAC đầy đủ**: mới thử ADMIN và XEM; chưa thử GIAM_SAT và TO_TRUONG với phạm vi tổ.
-- **Quân số nhiều nhóm**: mới thấy bảng hiển thị, chưa dựng dữ liệu nhiều mã nhóm để đối chiếu số.
+- **Quân số nhiều mã nhóm**: đã kiểm ở tầng unit test; chưa dựng dữ liệu nhiều nhóm trên giao diện để đối chiếu số.
+- **Reset mật khẩu / hết hạn phiên**: chưa chạy (cần SMTP thật ở staging).
 
 ## G. Rollback
 

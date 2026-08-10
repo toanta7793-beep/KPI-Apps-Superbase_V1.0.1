@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { supabase } from "../lib/supabase";
 import { buildWeekBackupXlsx } from "../lib/weekBackupXlsx";
+import { operationError } from "./importErrors";
 
 type Week={id:string;week_slot:number;start_date:string;end_date:string;teams?:{leader_name:string}|null};
 export function WeekArchiveButton({week,onDone,notify}:{week:Week;onDone:()=>Promise<void>;notify:(text:string)=>void}){
@@ -20,7 +21,7 @@ export function WeekArchiveButton({week,onDone,notify}:{week:Week;onDone:()=>Pro
       const result=await response.json();if(!response.ok)throw new Error(result.error||"Không thể xác minh backup.");
       const blob=new Blob([bytes],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});const url=URL.createObjectURL(blob);const link=document.createElement("a");link.href=url;link.download=`Backup_Tuan_${week.week_slot}_${week.start_date}_${week.end_date}.xlsx`;link.click();URL.revokeObjectURL(url);
       notify(`Đã backup và xóa an toàn Tuần ${week.week_slot} (${result.row_count} công việc).`);await onDone();
-    }catch(error){notify(`${error instanceof Error?error.message:"Xóa Tuần thất bại"}. Dữ liệu hoạt động không bị xóa.`)}finally{setBusy(false)}
+    }catch(error){notify(`${operationError(error instanceof Error?error.message:"Xóa Tuần thất bại")} Dữ liệu hoạt động không bị xóa.`)}finally{setBusy(false)}
   }
   return <button className="btn btn-sm btn-red" disabled={busy} onClick={archive}>{busy?"Đang backup…":`Backup & Xóa Tuần ${week.week_slot}`}</button>;
 }
