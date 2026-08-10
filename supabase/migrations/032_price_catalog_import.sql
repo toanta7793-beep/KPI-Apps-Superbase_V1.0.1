@@ -99,8 +99,11 @@ begin
            nullif(btrim(coalesce(x.work_code,'')),''),
            round(x.calc_price, 2),
            round(x.calc_price / 1.3, 2),
-           (app.norm_vn(btrim(x.content)) like '%dao tao%'
-             or app.norm_vn(btrim(x.content)) like '%phat sinh%')
+           -- Việc đặc biệt xác định theo HẠNG MỤC CẤP 1, đúng như create_job/update_job:
+           --   v_special := app.norm_vn(p_category_name) in ('dao tao','phat sinh')
+           -- Không suy ra từ nội dung, nếu không price_items.is_special sẽ nói khác
+           -- jobs.is_special_labor và người đọc sau này bị dẫn sai.
+           app.norm_vn(btrim(x.category_name)) in ('dao tao','phat sinh')
     from jsonb_to_recordset(p_items) as x(
       category_name text, content text, tech_desc text, unit text,
       work_code text, calc_price numeric

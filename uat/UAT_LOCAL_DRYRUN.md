@@ -182,12 +182,70 @@ Kèm `operationError()` trong `app/importErrors.ts`: 40+ mã lỗi Tuần / Giao
 
 **Consistency Web–RPC–PostgreSQL–file backup: khớp trên số dòng (12).**
 
+
+## F2b. Vòng UAT thứ ba — bản in PGV và phục hồi từ backup
+
+### Bố cục PGV đối chiếu `PGV_MAU.xlsx` — **KHỚP**
+
+Chỉ đọc bố cục của file mẫu, **không nạp nội dung "Dự án: Vũ Yên" vào bản sao**.
+
+| | PGV_MAU.xlsx | Bản in của app |
+|---|---|---|
+| Khối thông tin đầu phiếu | Dự án · Hạng mục · Bên giao Việc · Bên nhận Việc · Số CN · Ngày giao việc · Ngày nhận việc · Yêu cầu kèm theo · Tài liệu kèm theo | **đủ 9 mục, cùng thứ tự** |
+| Cột chính | STT · Nội dung công việc/Vị trí · Số lượng CN · Mục tiêu hoàn thành · Thời gian · Đánh giá kết quả hoàn thành · Ghi chú | **khớp 7/7** |
+| Cột con | Phân khu · Lô · Block · Vị trí chi tiết/tầng · Nội dung công việc Cấp 2 · Ngày bắt đầu · Ngày kết thúc | **khớp 7/7** |
+
+Khác biệt duy nhất là chữ nhãn: mẫu ghi "Vị trí chi tiết/tầng", app ghi "Vị trí chi tiết/tầng/mặt-trục" — chi tiết hơn, không đổi cấu trúc.
+
+### 🐛 Backup tuần không phục hồi được đầy đủ — đã sửa
+
+`buildWeekBackupXlsx` chỉ ghi 26 cột và **bỏ sót `is_special_labor`** cùng các cột kiểm toán
+(`created_at`, `created_by`, `request_key`, `legacy_source_row`). Cờ `is_special_labor` quyết định
+việc "Đào tạo"/"Phát sinh" có tính sản lượng hay không — phục hồi từ file cũ sẽ làm KPI lệch mà
+**không có dấu hiệu nào báo lỗi**. Backup mà không phục hồi đủ thì cổng "backup trước khi xóa" chỉ là hình thức.
+
+Kèm theo một lỗi sẽ phát sinh khi sửa: hàm sinh địa chỉ ô dùng `String.fromCharCode(65 + n)`,
+chỉ đúng tới cột Z. Bản cũ có đúng 26 cột nên chưa lộ; nâng lên 33 cột sẽ sinh ký tự rác
+(`[1`, ``...) và Excel không mở được file. Đã thay bằng hàm sinh A..Z, AA, AB... và `autoFilter`
+tính theo cột cuối thay vì cố định `A1:Z`.
+
+3 test mới trong `web/tests/week-backup.test.mjs` khóa cả hai điều này lại.
+
+### 🐛 Mẫu Excel đơn giá dạy sai quy ước việc đặc biệt — đã sửa
+
+`create_job` xác định việc đặc biệt bằng **HẠNG MỤC CẤP 1**: `norm_vn(category_name) in ('dao tao','phat sinh')`.
+Mẫu cũ của tôi để "Đào tạo" ở cột **Nội dung Cấp 2** dưới hạng mục "KHÁC MẪU" — theo mẫu đó thì
+người dùng dựng xong danh mục sẽ **không bao giờ giao được việc đặc biệt** (báo `INVALID_CATEGORY`).
+Đã sửa mẫu: "Đào tạo" và "Phát sinh" là hai hạng mục Cấp 1 riêng, tô vàng, kèm 2 dòng hướng dẫn.
+
+Migration 032 cũng đang suy `price_items.is_special` từ **nội dung**, lệch với quy tắc thật.
+Đã đổi sang suy từ hạng mục cho khớp `create_job`. (Cột này hiện chưa hàm nào đọc, nhưng để lệch
+là cái bẫy cho người đọc sau.)
+
+### Vòng đầy đủ backup → xóa → phục hồi
+
+Dựng Tuần 2 cho **Tổ MEP 02** với 3 việc, trong đó **1 việc đặc biệt** (hạng mục "Đào tạo",
+khối lượng tự tính = 2 người × 2 ngày = 4 công — đúng thiết kế của kit).
+
+| Bước | Kết quả |
+|---|---|
+| Archive qua giao diện | `COMPLETED`, `row_count = 3` |
+| Phạm vi | Tuần 2 của **MEP 02** → `ARCHIVED`; Tuần 2 của **MEP 01** vẫn `ACTIVE` |
+| File backup | 33 cột, có cột "Việc đặc biệt", giá trị `true` đúng ở dòng Đào tạo |
+| Sinh SQL phục hồi | `uat/restore_week_from_backup.py` — chạy thử, ra 3 câu `insert ... on conflict (id) do update` |
+| Chạy phục hồi | 3 việc trở lại hoạt động |
+| **Đối chiếu trước/sau** | **KHỚP TUYỆT ĐỐI** — nội dung, hạng mục, khối lượng, cờ đặc biệt, sản lượng, hòa vốn, chênh lệch của cả 3 dòng |
+| Chạy phục hồi lần 2 | Vẫn 3 việc, không nhân bản — **idempotent** |
+
+Công cụ phục hồi **cố ý không tự kết nối và không tự chạy**: nó chỉ in ra SQL trong `begin/commit`
+với `ON_ERROR_STOP` để người có quyền đọc lại rồi tự chạy. Nếu file backup thiếu cột bắt buộc
+(file do bản cũ sinh ra), script dừng và nói rõ file đó không phục hồi đầy đủ được.
+
 ## F3. Chưa kiểm thử ở bước này
 
 Các mục sau **chỉ chạy được sau khi có staging thật + có dữ liệu giả đầy đủ**, chưa PASS:
 
-- **Khôi phục ngược từ backup**: đã chứng minh file backup đọc lại được và khớp số dòng, nhưng **chưa** thử nạp ngược vào DB để phục hồi một tuần đã xóa.
-- **Bản in / PDF**: chưa kiểm tra bố cục có bị cắt nội dung dài, chưa đối chiếu với PGV_MAU.xlsx.
+- **Bản in PDF với nội dung dài**: đã đối chiếu cấu trúc cột với PGV_MAU.xlsx, nhưng chưa in thử nội dung dài để xem có bị cắt chữ không.
 - **Tải đồng thời**: chưa chạy nhiều phiên song song; chưa đo p95 RPC, deadlock, connection saturation.
 - **Quân số nhiều mã nhóm**: đã kiểm ở tầng unit test; chưa dựng dữ liệu nhiều nhóm trên giao diện để đối chiếu số.
 - **Reset mật khẩu / hết hạn phiên**: chưa chạy (cần SMTP thật ở staging).
