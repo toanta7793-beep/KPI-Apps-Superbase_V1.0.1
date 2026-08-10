@@ -21,3 +21,5 @@ uat/evidence/**/*.pdf
 # build artifacts
 web/tsconfig.tsbuildinfo
 web/dist/
+
+.claude/

@@ -1,6 +1,6 @@
 # UAT dry-run cục bộ — trước khi tạo bất kỳ Supabase project nào
 
-- **Ngày:** 10/08/2026
+- **Ngày:** 10/08/2026 (cập nhật sau vòng UAT giao diện)
 - **Môi trường:** PostgreSQL 17 chạy trong Docker trên máy nội bộ (`supabase start`), dải cổng **553xx**
 - **Không kết nối** tới bất kỳ Supabase project đám mây nào. Không đụng tới hệ thống KPI VINCONS.
 - **Cách lặp lại:** `npx supabase@2.113.0 start` rồi `psql -f uat/uat_032_033_catalog_import.sql`
@@ -52,17 +52,66 @@
 | T2 | Profile ADMIN ⇒ `app.current_role()` | `ADMIN` | **PASS** |
 | T13 | Tài khoản vai trò `XEM` gọi 2 RPC nhập | `FORBIDDEN` cả hai | **PASS** |
 
-## E. Chưa kiểm thử ở bước này
+## E. Kiểm thử qua giao diện + PostgREST (role `authenticated`, RLS + safeupdate thật)
+
+Chạy trên `npm run dev` trỏ vào stack cục bộ. Đây là lớp đã lộ ra lỗi mà psql (superuser) **không** bắt được.
+
+### 🐛 Lỗi đã phát hiện và sửa
+
+`admin_import_salary_standard` trả **400 `UPDATE requires a WHERE clause`** khi gọi qua PostgREST.
+PostgREST bật `safeupdate` cho role `authenticated`, nên `update salary_rows set ...` không có `WHERE` bị từ chối.
+Chạy bằng psql với quyền superuser thì **không** lỗi — vì vậy chỉ kiểm thử ở tầng SQL là chưa đủ.
+
+Đây đúng là lỗi mà migration `029_uat_runtime_fixes.sql` của kit đã từng phải vá cho `admin_import_worker_roster`
+(thêm `where r.team_id is null`). Bản sửa: thêm `where r.system_id is null or r.grade_id is null` vào 033,
+kèm chú thích lý do, và quét lại toàn bộ 032/033 — **0 câu lệnh ghi nào còn thiếu WHERE**.
+Sau khi sửa, `supabase db reset` áp lại 001→033 từ đầu và nhập lại thành công.
+
+### Kết quả
+
+| Mục UAT | Kỳ vọng | Kết quả |
+|---|---|---|
+| Đăng nhập / đăng xuất | Vào được, nhận đúng vai trò | **PASS** (`⚡ Quản trị viên`) |
+| Menu Quản Trị chỉ hiện với ADMIN | Có | **PASS** |
+| Nhập đơn giá qua UI | Preview 5 dòng/4 hạng mục + SHA-256, ghi đúng | **PASS** (52.000 → 40.000 hiển thị ngay trên preview) |
+| Nhập bảng lương qua UI | 9 dòng ghi, 2 dòng lương 0 bỏ qua | **PASS** (sau khi sửa lỗi trên) |
+| Nhập danh sách công nhân qua UI | 3 CNCH, 2 tổ tự tạo | **PASS** |
+| Quỹ lương tự tính | "Thợ Điện bậc 2" → 17.000.000/26 = 653.846 ₫/ngày | **PASS** |
+| Tìm việc cấp 2 không dấu | `get_catalog_cap2` trả đúng danh sách | **PASS** |
+| Tuần 9 ngày | Lưu được | **PASS** (01/09→09/09, lưu DB dạng ISO, UI hiện dd/mm/yyyy) |
+| Tuần 10 ngày | Từ chối | **PASS** (`INVALID_WEEK_RANGE_MAX_9_DAYS`) |
+| Tuần chồng ngày | Từ chối | **PASS** (`SHARED_WEEK_OVERLAP`) |
+| Sửa tuần | Có nút "✏️ Sửa Tuần 1" | **PASS** |
+| Preview hòa vốn trước khi lưu | Đúng số học | **PASS** — 3 ngày công · đơn giá 52.000 (`calc_price`) · sản lượng 5.200.000 · quỹ lương ngày 653.846,15 · chi phí 1.961.538,46 · chênh lệch 3.238.461,54 · điểm hòa vốn 37,72 |
+| Chống double-click tạo việc | Cùng `request_key` → cùng job id, không tạo trùng | **PASS** |
+| PGV chung 2 việc | 2 dòng | **PASS** |
+| PGV chung 12 việc | 12 dòng (tự tăng quá 6) | **PASS** |
+| PGV: ngày giao = ngày nhận − 1 | assign 31/08, receive 01/09 | **PASS** |
+| PGV CNCH | Nhận 03/09 → giao 02/09, đúng Tuần 1, đúng tổ | **PASS** |
+| Quân số | Bảng hiện đủ 4 bậc, ghi rõ "Tổ trưởng không tham gia" | **PASS** |
+| Gán việc đã gán vào tuần | Từ chối cả lô, không gán một phần | **PASS** (`JOB_MUST_FIT_SHARED_WEEK`) |
+| Xóa tuần — bằng chứng backup sai | Từ chối finalize, **không xóa gì** | **PASS** (`INVALID_BACKUP_PROOF`; sau đó vẫn còn 12 việc, 2 tuần ACTIVE, thao tác archive treo ở `PENDING`) |
+| RBAC vai trò XEM | FORBIDDEN ở 2 RPC nhập | **PASS** |
+
+### ⚠️ Hai điểm cần cải thiện (chưa chặn, chưa sửa)
+
+1. **Thông báo lỗi tuần hiện ra là mã kỹ thuật.** Người dùng nhập tuần 10 ngày chỉ thấy chữ
+   `INVALID_WEEK_RANGE_MAX_9_DAYS`. Cần một hàm dịch lỗi như `rosterImportError` / `catalogImportError`
+   đã có, áp cho `upsert_shared_work_week`, `assign_jobs_to_shared_week`, `create_job`, `update_job`.
+2. **Tên lỗi `JOB_MUST_FIT_SHARED_WEEK` gây hiểu nhầm** — nó bắn ra cả khi việc *đã* thuộc một tuần,
+   không liên quan tới chuyện ngày có nằm trong tuần hay không.
+
+## F. Chưa kiểm thử ở bước này
 
 Các mục sau **chỉ chạy được sau khi có staging thật + có dữ liệu giả đầy đủ**, chưa PASS:
 
-- Toàn bộ luồng giao diện: đăng nhập, tạo/sửa việc, preview hòa vốn, gộp/hủy nhóm.
-- Tuần 1–4: 9 ngày PASS / 10 ngày FAIL / chống overlap.
-- PGV chung (2 việc → 2 dòng, 12 việc → 12 dòng), PGV CNCH (ngày giao = ngày nhận − 1).
-- Quân số: dòng không nhóm, cùng mã nhóm, loại tổ trưởng.
-- Xóa tuần: backup → archive → verify → delete, và trường hợp lỗi giữa chừng.
-- Tải đồng thời, double-click ở tầng HTTP, khôi phục backup.
-- Nhập Excel qua **giao diện** (bước này mới chỉ kiểm thử ở tầng RPC/PostgreSQL).
+- **Sửa việc** đã lưu (`update_job`) và **gộp/hủy mã nhóm** — chưa chạy.
+- **Xóa tuần đường thành công**: backup → archive → verify → delete. Mới chỉ chứng minh nhánh THẤT BẠI không xóa gì.
+- **Khôi phục backup**: chưa thử phục hồi từ file Excel/snapshot đã ghi.
+- **Bản in/PDF**: chưa kiểm tra bố cục có bị cắt nội dung dài, chưa đối chiếu với PGV_MAU.xlsx.
+- **Tải đồng thời**: chưa chạy nhiều phiên song song; chưa đo p95 RPC, deadlock, connection saturation.
+- **RBAC đầy đủ**: mới thử ADMIN và XEM; chưa thử GIAM_SAT và TO_TRUONG với phạm vi tổ.
+- **Quân số nhiều nhóm**: mới thấy bảng hiển thị, chưa dựng dữ liệu nhiều mã nhóm để đối chiếu số.
 
 ## F. Rollback
 

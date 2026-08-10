@@ -152,9 +152,13 @@ begin
   )
   select count(*) into v_new_grades from new_grades;
 
+  -- WHERE là bắt buộc: PostgREST chạy với `safeupdate` bật cho role authenticated,
+  -- UPDATE không có WHERE bị từ chối ("UPDATE requires a WHERE clause").
+  -- Cùng lý do đã khiến migration 029 phải vá lại update trong admin_import_worker_roster.
   update salary_rows r
      set system_id = (select s.id from public.systems s where s.name = r.system_name),
-         grade_id  = (select g.id from public.salary_grades g where g.name = r.grade_name);
+         grade_id  = (select g.id from public.salary_grades g where g.name = r.grade_name)
+   where r.system_id is null or r.grade_id is null;
 
   if exists(select 1 from salary_rows where system_id is null or grade_id is null) then
     raise exception 'UNRESOLVED_SYSTEM_OR_GRADE';
