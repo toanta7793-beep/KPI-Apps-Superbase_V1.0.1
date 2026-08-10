@@ -113,7 +113,7 @@ Các mục sau **chỉ chạy được sau khi có staging thật + có dữ li�
 - **RBAC đầy đủ**: mới thử ADMIN và XEM; chưa thử GIAM_SAT và TO_TRUONG với phạm vi tổ.
 - **Quân số nhiều nhóm**: mới thấy bảng hiển thị, chưa dựng dữ liệu nhiều mã nhóm để đối chiếu số.
 
-## F. Rollback
+## G. Rollback
 
 Dry-run này không tạo tài nguyên đám mây nào. Dọn sạch bằng:
 
