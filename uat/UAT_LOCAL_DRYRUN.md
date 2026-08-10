@@ -388,6 +388,87 @@ Toàn bộ dữ liệu test đã được xóa qua đúng luồng backup→archi
 | Việc đang giao | 0 |
 | Bảng lương | có dữ liệu mẫu |
 
+
+## F2e. Đo tải ở quy mô thật và điểm nghẽn quỹ lương
+
+Ngày 11/08/2026. Lúc này staging đã có **dữ liệu thật của dự án**: 49 hạng mục Cấp 1,
+**89 tổ** (dự án Hạ Long Xanh), **1.000 công nhân**. Tôi **dừng mọi thao tác ghi** vào staging
+từ khi phát hiện điều này; các phép đo dưới đây chỉ đọc.
+
+### Kết quả đo trên staging — 4/5 RPC tốt, 1 RPC sập
+
+| RPC | 10 phiên | 25 phiên | 50 phiên |
+|---|---|---|---|
+| `get_my_access` | p95 962ms · 0 lỗi | 412ms · 0 lỗi | 493ms · 0 lỗi |
+| `get_catalog_cap1` | 334ms · 0 lỗi | 262ms · 0 lỗi | 337ms · 0 lỗi |
+| `get_shared_work_weeks` | 239ms · 0 lỗi | 287ms · 0 lỗi | 243ms · 0 lỗi |
+| `get_job_metrics` | 286ms · 0 lỗi | 532ms · 0 lỗi | 415ms · 0 lỗi |
+| **`get_payroll_summary`** | **8.584ms · 10/10 LỖI** | **20.808ms · 20/25 LỖI** | **41.063ms · 49/50 LỖI** |
+
+Lỗi: `canceling statement due to statement timeout` — chạm trần 8 giây của Postgres.
+`get_payroll_summary` được gọi ở **4 chỗ với `p_team_id = null`**, tức mỗi lần ai đó mở trang
+Nhân Sự là tính quỹ lương cho cả 87 tổ đang hoạt động.
+
+### Tách chi phí (Postgres cục bộ, dựng 89 tổ + 1.089 công nhân giả)
+
+| Phần | Thời gian |
+|---|---|
+| Quét view, chỉ đếm dòng | 6 ms |
+| + phân loại Hệ/Bậc bằng 9 biểu thức regex | 56 ms |
+| + `is_actual_leader` | 62 ms |
+| **+ tra bảng lương** | **729 ms** |
+
+Toàn bộ chi phí nằm ở chỗ `app.v_worker_salary` tra lương bằng **subquery tương quan**, chạy lại
+cho **từng công nhân** — 1.089 lần mỗi lần quét, và `get_payroll_summary` quét view **hai lần**.
+
+### A — migration 038: thay subquery tương quan bằng một join
+
+Gom bảng lương thành bảng tra nhỏ (số hệ × số cấp bậc) rồi `LEFT JOIN` một lần.
+
+**Kết quả trả về không đổi, và đã chứng minh chứ không phỏng đoán:**
+
+```
+perf_before_view  EXCEPT  app.v_worker_salary          -> 0 dòng
+app.v_worker_salary  EXCEPT  perf_before_view          -> 0 dòng
+perf_before_sum  EXCEPT  get_payroll_summary(null)     -> 0 dòng
+get_payroll_summary(null)  EXCEPT  perf_before_sum     -> 0 dòng
+```
+
+Cơ sở để khẳng định không đổi: `uq_salary_system_grade` unique `(system_id, grade_id)`,
+`uq_systems_code` unique `(code)`, `uq_grade_name` unique `(name)` ⇒ mỗi cặp
+`(system.code, grade.name)` khớp tối đa **một** dòng lương, nên `min()` trong bảng tra bằng đúng
+giá trị mà `LIMIT 1` trả về. Trường hợp `grade_name`/`system_code` là NULL thì cả hai cách đều cho NULL.
+
+Tốc độ: toàn bộ 89 tổ **1.150ms → 750ms** (~35%). Một tổ giữ nguyên **20–36ms**.
+
+> Một lần đo đơn lẻ cho 850ms ở trường hợp một tổ làm tôi tưởng đã gây thụt lùi 37 lần.
+> Đo lại 5 lần đều ra 20–36ms — con số kia là ngoại lệ vì chạy ngay sau ba lượt nặng.
+> Ghi lại đây để sau này không ai kết luận vội từ một phép đo.
+
+### B — trang Nhân Sự tải theo tổ đang chọn
+
+`TeamPayrollPanel` trước đây luôn gọi `p_team_id = null`. Nay mặc định chỉ tải **tổ đang chọn**;
+xem toàn bộ là một ô tick phải bấm có chủ đích, có ghi rõ "(chậm hơn)" và có dòng tổng cộng.
+
+### Hiệu quả kết hợp A + B (đo qua PostgREST, cùng quy mô)
+
+| Tải | Đường mặc định (1 tổ) | Đường tùy chọn (89 tổ) |
+|---|---|---|
+| 10 phiên | p95 **286ms** · 0 lỗi | p95 3.949ms · 0 lỗi |
+| 25 phiên | p95 **266ms** · 0 lỗi | p95 6.823ms · 0 lỗi |
+| 50 phiên | p95 **442ms** · **0 lỗi** | p95 10.254ms · **8/50 lỗi** |
+
+Trước khi sửa, **10 phiên đã hỏng 10/10**. Sau khi sửa, 50 phiên chạy sạch ở đường đi mặc định.
+
+### Giới hạn còn lại — phải biết trước khi lên production
+
+- Nút **"Xem tất cả 89 tổ"** vẫn hỏng khi nhiều người bấm cùng lúc (50 phiên → 8 lỗi
+  `Timed out acquiring connection from connection pool`). Đây là thao tác hiếm và phải bấm có chủ đích,
+  nhưng **không nên coi là đã an toàn**. Nếu thực tế nhiều người dùng nút này, cần tính lại
+  (chỉ tính tổng chứ không trả chi tiết từng tổ, hoặc lưu sẵn kết quả phân loại Hệ/Bậc).
+- Máy đo cục bộ mạnh hơn instance staging, nên số trên staging sẽ xấu hơn. Cần **đo lại trên staging
+  sau khi đẩy 038** để lấy con số thật.
+
 ## F3. Chưa kiểm thử ở bước này
 
 Các mục sau **chỉ chạy được sau khi có staging thật + có dữ liệu giả đầy đủ**, chưa PASS:
@@ -395,8 +476,8 @@ Các mục sau **chỉ chạy được sau khi có staging thật + có dữ li�
 - **Bản in PDF với nội dung dài**: đã đối chiếu cấu trúc cột với PGV_MAU.xlsx, nhưng chưa in thử nội dung dài để xem có bị cắt chữ không.
 - **Phục hồi ngược trên staging**: cơ chế đã chứng minh trọn vẹn ở môi trường cục bộ. Trên staging chưa chạy vì
   phục hồi cần quyền ghi thẳng vào bảng `jobs` — đúng thiết kế, chỉ người có quyền chạy SQL mới làm được.
-- **Tải đồng thời quy mô thật**: đã chạy 30 request song song; chưa chạy 50 phiên như khuyến nghị trong
-  PACKAGE_QA_REPORT, chưa đo p95 RPC / deadlock / connection saturation.
+- **Đo lại tải trên staging sau khi đẩy 038**: các con số ở mục F2e đo trên máy cục bộ, mạnh hơn
+  instance staging. Phải chạy lại 50 phiên trên staging để lấy p95 thật.
 - **Quân số nhiều mã nhóm**: đã kiểm ở tầng unit test; chưa dựng dữ liệu nhiều nhóm trên giao diện để đối chiếu số.
 - **Reset mật khẩu đầu-cuối**: endpoint chấp nhận yêu cầu, nhưng chưa mở email nhận link để đặt lại mật khẩu.
 - **Giao diện chạy trên chính staging**: đã kiểm chứng đầy đủ ở bản dựng cục bộ cùng commit; trên URL staging

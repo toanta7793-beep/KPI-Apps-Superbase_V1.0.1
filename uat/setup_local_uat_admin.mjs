@@ -11,7 +11,7 @@ import { randomBytes } from "node:crypto";
 import { execFileSync } from "node:child_process";
 
 const env = Object.fromEntries(
-  readFileSync(new URL("../web/.env.local", import.meta.url), "utf8")
+  readFileSync(new URL("../web/.env.development.local", import.meta.url), "utf8")
     .split(/\r?\n/)
     .filter(l => l && !l.startsWith("#") && l.includes("="))
     .map(l => [l.slice(0, l.indexOf("=")), l.slice(l.indexOf("=") + 1)]),
