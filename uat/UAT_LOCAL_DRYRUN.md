@@ -546,6 +546,43 @@ Lần hỏng đó trùng đúng thời điểm `notify pgrst` trong migration 03
 schema cache. **Đẩy migration khi đang có người dùng sẽ làm rớt một nhúm request đang bay** —
 nên chọn giờ vắng, hoặc báo trước.
 
+
+## F2g. Xác nhận cuối trên staging sau 039
+
+`supabase migration list` cho thấy **Local và Remote đều có đủ 001→039**, trong đó có cả `038`.
+Vậy kết luận ở mục F2f là chắc chắn, không còn nghi ngờ: **`038` đã lên staging nhưng không
+cải thiện gì ở đó.** Thứ thực sự giải quyết vấn đề là thay đổi giao diện (luôn truyền
+`p_team_id`) và `039`.
+
+### Đơn luồng, gọi `p_team_id = null` — đúng kiểu app cũ gọi
+
+| Vai trò | Nhanh nhất | Trung vị | Dòng trả về |
+|---|---|---|---|
+| TO_TRUONG (1 tổ) | **175ms** | 228ms | 5 |
+| GIAM_SAT (3 tổ) | **195ms** | 314ms | 15 |
+| ADMIN (87 tổ) | 1.132ms | 1.213ms | 435 |
+
+Khoảng 170ms trong số đó là độ trễ mạng tới Singapore, nên phần tính toán thực tế của
+người dùng phạm vi hẹp chỉ còn vài chục mili giây.
+
+### Tải đồng thời trên staging sau 039
+
+| Tải | TO_TRUONG (1 tổ) | GIAM_SAT (3 tổ) |
+|---|---|---|
+| 10 phiên | p95 438ms · **0 lỗi** | p95 728ms · **0 lỗi** |
+| 25 phiên | p95 727ms · **0 lỗi** | p95 1.290ms · **0 lỗi** |
+| 50 phiên | p95 **1.310ms** · **0 lỗi** | p95 **2.349ms** · **0 lỗi** |
+
+Trước 039, một người dùng phạm vi hẹp gọi đúng kiểu này tốn gần bằng ADMIN xem cả 87 tổ,
+tức khoảng 1 giây, và ở 10 phiên đồng thời là chạm trần statement timeout — hỏng 10/10.
+Sau 039, **50 phiên đồng thời chạy sạch**.
+
+### Dọn dẹp
+
+Hai tài khoản tạo để đo đã xóa. Staging còn đúng **một tài khoản** `royalle.manager@gmail.com`
+(ADMIN). Dữ liệu nghiệp vụ không bị đụng: 49 hạng mục Cấp 1, 89 tổ, 1.000 công nhân,
+0 việc đang giao.
+
 ## F3. Chưa kiểm thử ở bước này
 
 Các mục sau **chỉ chạy được sau khi có staging thật + có dữ liệu giả đầy đủ**, chưa PASS:
@@ -553,8 +590,8 @@ Các mục sau **chỉ chạy được sau khi có staging thật + có dữ li�
 - **Bản in PDF với nội dung dài**: đã đối chiếu cấu trúc cột với PGV_MAU.xlsx, nhưng chưa in thử nội dung dài để xem có bị cắt chữ không.
 - **Phục hồi ngược trên staging**: cơ chế đã chứng minh trọn vẹn ở môi trường cục bộ. Trên staging chưa chạy vì
   phục hồi cần quyền ghi thẳng vào bảng `jobs` — đúng thiết kế, chỉ người có quyền chạy SQL mới làm được.
-- **Đo lại tải trên staging sau khi đẩy 039**: các con số của 039 ở mục F2f đo trên máy cục bộ.
-  Phải chạy lại trên staging để xác nhận người dùng phạm vi hẹp cũng nhanh như đo được.
+- **Bản in PDF với nội dung dài**: đã đối chiếu cấu trúc cột với PGV_MAU.xlsx và chỉnh tỉ lệ
+  cột, nhưng chưa in thử nội dung dài để xem chữ có bị cắt không.
 - **Quân số nhiều mã nhóm**: đã kiểm ở tầng unit test; chưa dựng dữ liệu nhiều nhóm trên giao diện để đối chiếu số.
 - **Reset mật khẩu đầu-cuối**: endpoint chấp nhận yêu cầu, nhưng chưa mở email nhận link để đặt lại mật khẩu.
 - **Giao diện chạy trên chính staging**: đã kiểm chứng đầy đủ ở bản dựng cục bộ cùng commit; trên URL staging
