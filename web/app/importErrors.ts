@@ -67,7 +67,8 @@ const OPERATION_MESSAGES:Array<[RegExp,string]>=[
   [/REMOVE_EXISTING_GROUP_FIRST/,"Có việc đã thuộc một mã nhóm khác. Hãy xóa mã nhóm cũ trước."],
   [/GROUP_TEAM_MISMATCH/,"Các việc trong một nhóm phải cùng một Tổ."],
   [/GROUP_DATE_MISMATCH/,"Các việc trong một nhóm phải cùng khoảng ngày."],
-  [/GROUP_LOCATION_MISMATCH/,"Các việc trong một nhóm phải cùng vị trí thi công."],
+  // GROUP_LOCATION_MISMATCH đã bỏ ở migration 041: các việc trong một nhóm KHÔNG cần cùng
+  // vị trí. Xóa luôn dòng dịch cũ, để lại chỉ khiến người đọc sau tưởng quy tắc đó còn.
   [/GROUP_LOCATION_REQUIRED/,"Phải nhập vị trí thi công trước khi tạo mã nhóm."],
   [/GROUP_STAFFING_MISMATCH/,"Các việc trong một nhóm phải cùng cơ cấu nhân sự."],
   [/GROUP_METRICS_INCOMPLETE/,"Thiếu số liệu để tính nhóm. Kiểm tra khối lượng và đơn giá."],

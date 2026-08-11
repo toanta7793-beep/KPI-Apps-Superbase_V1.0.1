@@ -10,7 +10,22 @@ Quy trình đầy đủ ở [../VERSIONING.md](../VERSIONING.md).
 
 ---
 
-## Bản đang chạy trên staging (chưa cắt phiên bản)
+## Bản đang chạy trên staging — ĐANG LỆCH so với v1.0.1
+
+Sau khi cắt v1.0.1 đã deploy thêm **một bản sửa lỗi** (gộp mã nhóm không còn đòi trùng vị
+trí ở giao diện). Staging vì vậy **đi trước tag v1.0.1 một commit**, chưa được đặt tên
+phiên bản.
+
+| | |
+|---|---|
+| Cloudflare Worker version | `107f8ac9-9243-491e-ab69-939a4857235d` |
+| Nội dung | sửa `validateJobGroup` — chỉ frontend, không có migration |
+
+Cắt thành phiên bản mới khi nào cũng được; vì không có migration nên không cần script hoàn tác.
+
+---
+
+## Bản đã cắt v1.0.1
 
 | | |
 |---|---|
