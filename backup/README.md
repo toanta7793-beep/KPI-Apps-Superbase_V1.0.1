@@ -178,7 +178,44 @@ hoạt động vẫn nằm trong bản dump.
 
 ---
 
-## 7. Giới hạn cần biết rõ
+## 7. Điểm khôi phục có tên — chốt lại một thời điểm cụ thể
+
+Dùng khi sắp làm một việc lớn (đổi công thức, nhập lại đơn giá, chạy migration mới) và muốn
+chắc chắn quay lại được đúng trạng thái trước đó.
+
+```
+.\backup\kpi_restore_point.ps1 -Name truoc-khi-doi-cong-thuc-luong -OutputDir C:\KPI-Backups\staging
+```
+
+Script chốt lại **cả ba phần** của một thời điểm, vì một bản dump không đủ:
+
+| Phần | Nằm ở đâu | Quay lại được không |
+|---|---|---|
+| Mã nguồn + file migration | Git | Được, chính xác |
+| Dữ liệu (dòng trong bảng) | File dump | Được, chính xác |
+| **Cấu trúc bảng/hàm** | **không có bản chụp riêng** | **Không tự động** |
+
+Phần thứ ba là chỗ dễ nhầm nhất và cần nói thẳng: `kpi_restore.ps1` chạy `--data-only`, tức
+chỉ nạp lại **dữ liệu**. Nó **không** đưa cấu trúc bảng về như cũ, và dự án **không có
+migration lùi (down) nào**. Nếu sau thời điểm đó đã chạy thêm migration thì phải hoặc dựng
+một project mới rồi chạy migration tới đúng mốc, hoặc viết một migration đảo ngược.
+
+Script từ chối chạy khi cây làm việc còn thay đổi chưa commit — commit ghi trong điểm khôi
+phục sẽ không chứa các sửa đổi dang dở, và như vậy một nửa điểm khôi phục là thứ không tái
+tạo được.
+
+Kết quả sinh ra hai file:
+
+- `diem-khoi-phuc_<ten>.json` trong thư mục backup — kèm SHA-256 và số dòng các bảng cốt lõi.
+- `backup/restore-points/<ten>.md` trong repo — **nhớ commit**. Trong đó có sẵn lệnh quay lại,
+  danh sách migration đã chạy, và các con số để đối chiếu sau khi khôi phục.
+
+Đối chiếu số dòng sau khi nạp là bước bắt buộc, không phải tùy chọn: đó là cách duy nhất
+biết bản khôi phục có đúng hay không mà không phải đoán.
+
+---
+
+## 8. Giới hạn cần biết rõ
 
 - **Mất tối đa 1 ngày dữ liệu.** Chỉ quay về được thời điểm bản dump gần nhất. Muốn nhỏ hơn
   thì tăng tần suất chạy, hoặc mua add-on PITR của Supabase.
