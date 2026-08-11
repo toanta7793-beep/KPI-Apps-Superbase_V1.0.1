@@ -672,7 +672,7 @@ Thêm 2 test: nhiều nhóm khác nhau, và tổ trưởng khai 5 người cũng
 Theo quyết định 11/08/2026, phương án (a): có bộ lọc chọn Tuần 1–4, và **việc chưa gộp vào tuần
 nào thì bỏ khỏi KPI**.
 
-Trước đây  gom toàn bộ việc chưa xóa của tổ rồi lấy min(ngày bắt đầu) →
+Trước đây `get_kpi_evaluation()` gom toàn bộ việc chưa xóa của tổ rồi lấy min(ngày bắt đầu) →
 max(ngày kết thúc) làm kỳ đánh giá. Một việc lẻ nằm ngoài mọi tuần vẫn kéo dài kỳ đánh giá, mà
 quỹ lương = lương ngày × số ngày của kỳ, nên KPI bị sai theo hướng **khắt khe hơn thực tế**.
 
@@ -684,7 +684,7 @@ Từng phép tính giữ nguyên; chỉ đổi phạm vi việc được đưa v
 | KPI Tuần 2 (1 việc, 20 đơn vị) | sản lượng 1.000.000 ✓ |
 | Không lọc | 2 dòng, mỗi tuần một dòng ✓ |
 | Tuần 3 chưa có việc | 0 dòng ✓ |
-| Tuần 9 (sai) |  ✓ |
+| Tuần 9 (sai) | `INVALID_WEEK_SLOT` ✓ |
 | **Việc lẻ 9.999 đơn vị ngoài mọi tuần** | **không xuất hiện ở bất kỳ tuần nào** ✓ — nếu bị tính vào thì sản lượng đã vọt lên ~500 triệu |
 | Giao diện: chọn Tuần 2 | còn đúng 1 thẻ ✓ |
 
