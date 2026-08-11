@@ -39,7 +39,9 @@ function Fail { param([string]$m) Say "DUNG: $m" Red; exit 1 }
 # Mốc nền: 001-044 dựng nên hệ thống hiện tại, không cần đường quay về trước chúng.
 $BASELINE = 44
 
-if ($Version -notmatch '^\d+\.\d+\.\d+$') { Fail "Phien ban phai co dang X.Y.Z, vi du 1.0.2." }
+# Cho phep ca X.Y.Z lan X.Y.Z.W: ban sua loi nho di sau mot phien ban da cat can mot so hieu
+# rieng, khong nen chiem luon so hieu danh cho ban mo rong tiep theo.
+if ($Version -notmatch '^\d+\.\d+\.\d+(\.\d+)?$') { Fail "Phien ban phai co dang X.Y.Z hoac X.Y.Z.W, vi du 1.0.2 hoac 1.0.1.1." }
 $tag  = "v$Version"
 $repo = Split-Path -Parent $PSScriptRoot
 Push-Location $repo

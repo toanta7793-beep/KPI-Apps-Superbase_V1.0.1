@@ -146,6 +146,14 @@ thống này thì không đáng.
 
 ---
 
+## Cách đánh số
+
+`X.Y.Z` cho bản có tính năng mới. `X.Y.Z.W` cho bản sửa lỗi đi sau một phiên bản đã cắt —
+ví dụ `1.0.1.1` là bản sửa lỗi của `1.0.1`, để số hiệu `1.0.2` vẫn dành cho bản mở rộng
+tiếp theo.
+
+---
+
 ## Mốc nền
 
 Migration **001–044** là Ver 1.0.1, không cần script hoàn tác — chúng dựng nên hệ thống
