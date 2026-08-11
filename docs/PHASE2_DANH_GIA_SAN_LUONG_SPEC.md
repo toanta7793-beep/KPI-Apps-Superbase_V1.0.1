@@ -22,8 +22,8 @@ thành, và đưa tổng lũy kế thành tiền của tuần sang màn KPI.
 | Cột | Tên | Nguồn |
 |---|---|---|
 | A | STT | đánh số hiển thị |
-| B | **Phân khu** | ⚠️ hiện chưa tách — xem câu hỏi 2 |
-| C | **Vị trí chi tiết/tầng/mặt-trục** | ⚠️ hiện chưa tách — xem câu hỏi 2 |
+| B | **Phân khu** | `jobs.location` — cùng giá trị với cột C (quyết định: chưa tách) |
+| C | **Vị trí chi tiết/tầng/mặt-trục** | `jobs.location` |
 | D | Nội dung công việc | `jobs.content` |
 | E | **Mục tiêu hoàn thành** | `jobs.quantity` + đơn vị — **đã có sẵn** |
 | F | Ngày bắt đầu | `jobs.start_date` |
@@ -124,7 +124,7 @@ loại lỗi đó một lần (backup thiếu cột `is_special_labor`).
 | Hạng mục | Ghi chú |
 |---|---|
 | **Bảng sản lượng theo ngày** | khóa chính (việc, ngày); có cờ khóa và người khóa |
-| **Tách Phân khu / Vị trí chi tiết** | hiện chỉ có một trường `jobs.location` — xem câu hỏi 2 |
+| **Luồng Admin mời tài khoản cho 89 tổ trưởng** | việc phải xong trước — xem câu hỏi 3 |
 | Hàm nhập + khóa + mở khóa (Admin) | |
 | Hàm tổng hợp bảng đánh giá sản lượng | |
 | Màn hình "Đánh giá sản lượng" + bộ lọc theo tổ/tuần | |
@@ -153,26 +153,65 @@ thì nên xem lại. Ghi ở đây để sau không ai bất ngờ.
 khi tổ trưởng đã nhập sản lượng thì cột % đổi theo mà không có cảnh báo. Hiện `update_job`
 đã chặn sửa việc đang có mã nhóm; cần xét có chặn thêm khi việc đã có sản lượng hay không.
 
-**Việc lao động đặc biệt** (Đào tạo, Phát sinh) có khối lượng tự sinh = số người × số ngày.
-Ghi sản lượng cho loại việc này không có ý nghĩa nghiệp vụ — xem câu hỏi 4.
+**Việc lao động đặc biệt** (Đào tạo, Phát sinh) đã xử lý: tự lũy kế, không nhập tay — xem
+câu hỏi 4.
+
+**Không có tài khoản thì tính năng nằm im.** Nhập sản lượng là việc hằng ngày của 89 tổ
+trưởng. Nếu luồng tài khoản chưa xong thì màn hình có dựng xong cũng không ai dùng, và số
+liệu KPI "sản lượng thực tế" sẽ trống.
 
 ---
 
-## 11. Bốn câu hỏi cần trả lời trước khi làm
+## 11. Bốn câu hỏi — đã trả lời 11/08/2026
 
-Ghi ở đây để không phải đoán. Chi tiết và các phương án ở phần trả lời kèm theo.
+### 1. Một dòng của bảng = **một VIỆC**
 
-1. **Một dòng của bảng = một VIỆC hay một MÃ NHÓM?**
-2. **Có tách Phân khu khỏi Vị trí chi tiết ngay đợt này không?**
-3. **Tổ trưởng có tài khoản đăng nhập chưa?**
-4. **Việc Đào tạo / Phát sinh có phải nhập sản lượng không?**
+Nhập và hiển thị đều theo từng việc. Cột % vì vậy luôn có nghĩa: tử số và mẫu số cùng một
+đơn vị.
+
+Khác file Excel gốc ở chỗ các việc cùng mã nhóm sẽ nằm thành **nhiều dòng** thay vì được
+nối lại bằng TEXTJOIN. Đây là chủ ý: dòng gộp không cộng được khối lượng khi các việc khác
+đơn vị (md, m², kg), nên cột % của dòng gộp sẽ vô nghĩa. Mã nhóm vẫn hiện được để biết các
+dòng nào đi cùng nhau.
+
+### 2. **Chưa tách** Phân khu khỏi Vị trí chi tiết
+
+Giữ nguyên một trường `jobs.location`. Hai cột B và C của bảng cùng hiện một giá trị, đúng
+như bản in PGV đang làm. Không đụng tới dữ liệu đang có. Tách sau lúc nào cũng được.
+
+### 3. Tổ trưởng **chưa có tài khoản** — phải tạo cho 89 người
+
+Đây là **việc phải xong trước** khi tính năng dùng được thật, và nó không nhỏ:
+
+* Cần luồng Admin mời tài khoản hàng loạt, gắn mỗi tài khoản với đúng tổ.
+* Dùng **luồng mời / đặt lại mật khẩu an toàn**, không đặt sẵn mật khẩu và không hiển thị
+  mật khẩu ở bất cứ đâu.
+* ⚠️ **Cần biết trước: 89 tổ trưởng có địa chỉ email không?** Supabase định danh người dùng
+  bằng email. Nếu không có thì phải chọn cách định danh khác, và đó là một thiết kế riêng
+  chứ không phải một ô nhập thêm.
+
+### 4. Đào tạo / Phát sinh: **hiện trong bảng, không nhập tay, tự lũy kế theo ngày**
+
+Loại việc này có khối lượng tự sinh = **số người × số ngày**, đơn vị là công. Nên không bắt
+tổ trưởng nhập; hệ thống tự cộng dồn mỗi ngày trôi qua thêm đúng **số người** của việc.
+
+| | |
+|---|---|
+| Lũy kế khối lượng | số người × số ngày đã trôi qua |
+| Lũy kế % | ngày đã trôi qua ÷ tổng số ngày của việc |
+| Ô nhập | khóa, không cho gõ tay |
+
+**Giả định cần anh xác nhận khi làm:** "số ngày đã trôi qua" tính tới **ngày hôm nay**, và
+không vượt quá ngày kết thúc của việc. Tức việc đã xong thì lũy kế đứng ở 100%, không tăng
+tiếp.
 
 ---
 
 ## 12. Thứ tự thi công đề nghị
 
-1. Trả lời 4 câu hỏi ở mục 11.
-2. Tách Phân khu / Vị trí chi tiết (nếu chọn làm) — làm trước vì cả báo cáo lẫn bản in phụ thuộc.
+1. ~~Trả lời 4 câu hỏi ở mục 11~~ — đã trả lời 11/08/2026.
+2. Xác nhận 89 tổ trưởng có email hay không, rồi làm luồng mời tài khoản. Không có tài
+   khoản thì không ai nhập được số, nên phần còn lại có làm xong cũng chưa dùng được.
 3. Bảng sản lượng theo ngày + hàm nhập + khóa.
 4. **Cùng lúc** sửa luồng xóa tuần và script sao lưu (mục 7).
 5. Màn hình Đánh giá sản lượng + phân quyền theo tổ.
