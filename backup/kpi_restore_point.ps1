@@ -96,6 +96,7 @@ select 'viec=' || count(*) from public.jobs where deleted_at is null;
 select 'don_gia=' || count(*) from public.price_items where is_active;
 select 'tuan=' || count(*) from public.shared_work_weeks where status = 'ACTIVE';
 select 'tai_khoan=' || count(*) from public.profiles where is_active;
+select 'san_luong=' || count(*) from public.job_daily_production;
 "@
   $probeOut = & docker run --rm -i $PostgresImage psql "$dbUrl" -tA -v ON_ERROR_STOP=1 -c $probe
   if ($LASTEXITCODE -ne 0) { Say "Khong doc duoc trang thai database. KHONG tao diem khoi phuc." Red; exit 5 }
@@ -153,6 +154,7 @@ Số liệu tại thời điểm chụp — dùng để đối chiếu SAU KHI k
 | Dòng đơn giá đang dùng | $($state['don_gia']) |
 | Tuần đang mở | $($state['tuan']) |
 | Tài khoản đang hoạt động | $($state['tai_khoan']) |
+| Dòng sản lượng theo ngày | $($state['san_luong']) |
 
 ## Cách quay lại điểm này
 

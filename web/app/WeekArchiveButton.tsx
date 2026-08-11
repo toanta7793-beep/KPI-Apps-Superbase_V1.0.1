@@ -15,7 +15,7 @@ export function WeekArchiveButton({week,onDone,notify}:{week:Week;onDone:()=>Pro
       const operation=crypto.randomUUID();
       const {data:prepared,error}=await supabase.rpc("prepare_week_archive",{p_operation_id:operation,p_week_id:week.id});
       if(error)throw error;
-      const bytes=buildWeekBackupXlsx((prepared.snapshot||[]) as Record<string,unknown>[]);
+      const bytes=buildWeekBackupXlsx((prepared.snapshot||[]) as Record<string,unknown>[],(prepared.production||[]) as Record<string,unknown>[]);
       const {data:session}=await supabase.auth.getSession();
       const response=await fetch("/api/weeks/archive",{method:"POST",headers:{Authorization:`Bearer ${session.session?.access_token||""}`,"Content-Type":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","X-Operation-Id":operation,"X-Week-Id":week.id},body:bytes});
       const result=await response.json();if(!response.ok)throw new Error(result.error||"Không thể xác minh backup.");
