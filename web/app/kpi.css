@@ -373,3 +373,31 @@ button.nav-item { width:calc(100% - 16px); border:0; text-align:left; background
 .sheet-table th .th-hint{display:block;margin-top:2px;font-weight:400;font-style:italic;font-size:.82em;line-height:1.25;text-transform:none;letter-spacing:0}
 .sheet-signatures .sign-hint{display:block;margin-top:2px;font-style:italic;font-weight:400;font-size:.9em}
 @media print{.sheet-table th .th-hint{font-size:.8em;line-height:1.2}}
+
+/* Bảng Đánh giá sản lượng. Mười cột nên bắt buộc cuộn ngang trong khung riêng — để trang
+   cuộn ngang thì mọi màn hình khác cũng lệch theo. */
+.production-table{width:100%;border-collapse:collapse;font-size:11px;min-width:1050px}
+.production-table th{padding:6px 8px;background:var(--vc-navy);color:#fff;border:1px solid #26377d;font-weight:700}
+.production-table td{padding:6px 8px;border:1px solid var(--vc-border);vertical-align:top}
+.production-table tbody tr:nth-child(even){background:#fafbff}
+.production-table tr.row-auto{background:#f3f7ff}
+.production-table .badge{margin-left:6px}
+.production-table .cell-entry{min-width:190px}
+.entry-box{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.entry-box .form-control{width:88px;padding:4px 6px;font-size:12px}
+.entry-note{display:flex;flex-direction:column;color:var(--vc-text-sub)}
+.entry-note small{font-size:9px}
+.muted{color:var(--vc-text-sub);font-style:italic}
+@media(max-width:640px){.production-table{font-size:10px}}
+
+/* Sản lượng thực tế: chỉ báo RIÊNG, không dùng chung màu với lãi/lỗ ở trên. Một tổ có thể
+   lãi mà vẫn chậm tiến độ, nên hai thước đo phải nhìn ra là hai thứ khác nhau. */
+.kpi-actual{display:flex;flex-direction:column;gap:2px;margin-top:8px;padding:8px 10px;border-radius:9px;border-left:4px solid var(--vc-text-sub);background:var(--vc-bg)}
+.kpi-actual span{font-size:11px;color:var(--vc-text-sub);font-weight:600}
+.kpi-actual b{font-size:16px;font-weight:800;color:var(--vc-navy)}
+.kpi-actual small{font-size:11px;color:var(--vc-text-sub)}
+.kpi-actual.behind{border-left-color:var(--vc-red);background:var(--vc-red-bg)}
+.kpi-actual.behind b{color:var(--vc-red)}
+.kpi-actual.ontrack{border-left-color:var(--vc-green);background:var(--vc-green-bg)}
+.kpi-actual.ontrack b{color:var(--vc-green)}
+.kpi-actual.pending b{font-size:13px;font-weight:600}
