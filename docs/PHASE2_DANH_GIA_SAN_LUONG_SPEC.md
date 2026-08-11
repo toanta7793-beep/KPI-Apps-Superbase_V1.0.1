@@ -198,6 +198,15 @@ thị rõ "chưa có dữ liệu nhập" thay vì số 0, vì 0 và "chưa nhậ
 nhập hằng ngày bằng tài khoản Admin, vì Admin thấy mọi tổ còn tổ trưởng chỉ thấy tổ mình —
 đúng phần dễ sai nhất lại là phần không được kiểm.
 
+> **Đã có, kiểm chứng trên staging 11/08/2026:** 2 tài khoản TO_TRUONG (mỗi người 1 tổ) và
+> 1 tài khoản GIAM_SAT (4 tổ), đều gắn tổ qua `profile_teams` nên `can_access_team` cho qua.
+>
+> Ghi chú kỹ thuật: cả ba chưa gắn `worker_id`, nên `get_my_access` trả `team_id` = NULL và
+> giao diện rơi vào nhánh dự phòng "lấy tổ hoạt động đầu tiên". Hiện **không sai**, vì RLS
+> đã thu danh sách tổ về đúng phạm vi của họ rồi — tổ trưởng chỉ có một tổ để chọn. Nhưng nó
+> đúng vì hoàn cảnh chứ không vì thiết kế; nếu sau này cần biết *người dùng này là công nhân
+> nào* thì phải gắn `worker_id`.
+
 **(c) Luồng tạo tài khoản hiện có KHÔNG phải luồng mời.** Màn Phân Quyền hiện bắt Admin
 nhập **email và mật khẩu** (tối thiểu 8 ký tự) rồi gọi `createUser` với mật khẩu đó. Nghĩa
 là Admin phải tự nghĩ 89 mật khẩu, gõ vào, rồi chuyển cho từng người bằng cách nào đó.
