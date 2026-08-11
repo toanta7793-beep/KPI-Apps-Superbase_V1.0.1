@@ -698,6 +698,27 @@ Từng phép tính giữ nguyên; chỉ đổi phạm vi việc được đưa v
 2. **Trang Tổng Quan đếm sai.** KPI giờ trả một dòng cho mỗi *(tổ × tuần)*, nên đếm số dòng sẽ
    thổi phồng số tổ. Đã đổi sang đếm **theo tổ** (Set theo tên tổ), và cảnh báo KPI ghi rõ tuần nào.
 
+
+### Migration 043 — quỹ lương tính theo số ngày của CẢ TUẦN
+
+Sau khi 042 thu KPI về từng tuần, kỳ đánh giá vẫn lấy `min(ngày bắt đầu)` → `max(ngày kết thúc)`
+**của các việc**. Tuần 01→05/09 mà việc chỉ nằm ở 02→03/09 thì ra 2 ngày, quỹ lương chỉ tính 2 ngày,
+trong khi tổ vẫn được trả lương cả tuần. Chi phí bị tính thiếu, KPI trông đẹp hơn thực tế.
+
+Nay kỳ đánh giá lấy thẳng từ bản ghi tuần của tổ (`work_weeks.start_date`/`end_date`).
+
+| Đo | Trước | Sau |
+|---|---|---|
+| Kỳ đánh giá | 02→03/09 | **01→05/09** ✓ |
+| Số ngày | 2 | **5** ✓ |
+| Quỹ lương | 7.076.923 | **17.692.308** ✓ |
+| Kiểm chứng | | lương ngày 3.538.462 × 5 = khớp ✓ |
+
+Sản lượng, chênh lệch, ngưỡng đánh giá, cổng an toàn và quy tắc bỏ việc chưa gộp tuần: giữ nguyên.
+
+**Cảnh báo vận hành:** sau thay đổi này sẽ có **thêm tổ rơi vào KHÔNG ĐẠT KPI**. Đó là số đúng,
+không phải lỗi — trước đây mọi tuần có số ngày làm ít hơn số ngày của tuần đều bị tính thiếu chi phí.
+
 ## F3. Chưa kiểm thử ở bước này
 
 Các mục sau **chỉ chạy được sau khi có staging thật + có dữ liệu giả đầy đủ**, chưa PASS:
