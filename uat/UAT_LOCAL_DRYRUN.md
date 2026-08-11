@@ -666,6 +666,38 @@ Dựng 7 việc: 2 dòng lẻ + nhóm A (2 dòng × 1 thợ bậc 1) + nhóm B (
 Nếu tính sai thì phải ra 2 / 6 / 2. Tổ trưởng (1 người) không xuất hiện trong bảng.
 Thêm 2 test: nhiều nhóm khác nhau, và tổ trưởng khai 5 người cũng không làm lệch quân số.
 
+
+## F2i. Migration 042 — KPI tính theo tuần
+
+Theo quyết định 11/08/2026, phương án (a): có bộ lọc chọn Tuần 1–4, và **việc chưa gộp vào tuần
+nào thì bỏ khỏi KPI**.
+
+Trước đây  gom toàn bộ việc chưa xóa của tổ rồi lấy min(ngày bắt đầu) →
+max(ngày kết thúc) làm kỳ đánh giá. Một việc lẻ nằm ngoài mọi tuần vẫn kéo dài kỳ đánh giá, mà
+quỹ lương = lương ngày × số ngày của kỳ, nên KPI bị sai theo hướng **khắt khe hơn thực tế**.
+
+Từng phép tính giữ nguyên; chỉ đổi phạm vi việc được đưa vào.
+
+| Kịch bản | Kết quả |
+|---|---|
+| KPI Tuần 1 (1 việc, 100 đơn vị × 50.000) | sản lượng 5.000.000, 2 ngày công ✓ |
+| KPI Tuần 2 (1 việc, 20 đơn vị) | sản lượng 1.000.000 ✓ |
+| Không lọc | 2 dòng, mỗi tuần một dòng ✓ |
+| Tuần 3 chưa có việc | 0 dòng ✓ |
+| Tuần 9 (sai) |  ✓ |
+| **Việc lẻ 9.999 đơn vị ngoài mọi tuần** | **không xuất hiện ở bất kỳ tuần nào** ✓ — nếu bị tính vào thì sản lượng đã vọt lên ~500 triệu |
+| Giao diện: chọn Tuần 2 | còn đúng 1 thẻ ✓ |
+
+### Hai chỗ suýt làm sai, ghi lại
+
+1. **Cổng an toàn suýt biến thành giấu lỗi.** Bản viết đầu tiên của tôi lọc bỏ những tổ có việc
+   thiếu đơn giá ra khỏi bảng. Như vậy người quản lý nhìn bảng KPI mà không biết là đang thiếu tổ —
+   tệ hơn là không có số. Đã trả về đúng cách hành xử cũ: **báo lỗi cả màn hình**, chỉ khác là thu
+   phạm vi về đúng tuần đang xem và nêu rõ tên tổ có vấn đề.
+
+2. **Trang Tổng Quan đếm sai.** KPI giờ trả một dòng cho mỗi *(tổ × tuần)*, nên đếm số dòng sẽ
+   thổi phồng số tổ. Đã đổi sang đếm **theo tổ** (Set theo tên tổ), và cảnh báo KPI ghi rõ tuần nào.
+
 ## F3. Chưa kiểm thử ở bước này
 
 Các mục sau **chỉ chạy được sau khi có staging thật + có dữ liệu giả đầy đủ**, chưa PASS:
