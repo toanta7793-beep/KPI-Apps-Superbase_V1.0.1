@@ -102,6 +102,16 @@ try {
   & git tag -a $tag -m "Phien ban $Version"
   if ($LASTEXITCODE -ne 0) { Fail "Khong tao duoc tag." }
 
+  # Điểm khôi phục được tạo TRƯỚC khi có tag, nên lúc đó nó ghi "(chua dat tag)". Nếu để
+  # nguyên thì file điểm khôi phục không chỉ ngược về được phiên bản nào — mà cả điểm việc
+  # gắn hai thứ với nhau là để sau này nhìn một file biết ngay file kia. Điền lại ở đây.
+  $rpFile = Join-Path $repo "backup\restore-points\$rpName.md"
+  if (Test-Path $rpFile) {
+    $rpText = Get-Content $rpFile -Raw -Encoding utf8
+    $rpText = $rpText -replace '\| Tag \| \(chua dat tag\) \|', "| Tag | ``$tag`` |"
+    Set-Content -Path $rpFile -Value $rpText -Encoding utf8 -NoNewline
+  }
+
   # Ghi lại phiếu phiên bản. Mã version của Worker phải điền vào đây, nếu không sau này
   # không biết quay bản web về đâu.
   $relDir = Join-Path $repo "docs\releases"
