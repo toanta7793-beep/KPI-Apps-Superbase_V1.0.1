@@ -124,7 +124,7 @@ loại lỗi đó một lần (backup thiếu cột `is_special_labor`).
 | Hạng mục | Ghi chú |
 |---|---|
 | **Bảng sản lượng theo ngày** | khóa chính (việc, ngày); có cờ khóa và người khóa |
-| **Luồng Admin mời tài khoản cho 89 tổ trưởng** | việc phải xong trước — xem câu hỏi 3 |
+| **Luồng mời tài khoản an toàn + cấu hình SMTP** | KHÔNG chặn việc xây phần 2; phải xong trước **ngày phát tài khoản** — xem câu hỏi 3 |
 | Hàm nhập + khóa + mở khóa (Admin) | |
 | Hàm tổng hợp bảng đánh giá sản lượng | |
 | Màn hình "Đánh giá sản lượng" + bộ lọc theo tổ/tuần | |
@@ -156,9 +156,10 @@ khi tổ trưởng đã nhập sản lượng thì cột % đổi theo mà khôn
 **Việc lao động đặc biệt** (Đào tạo, Phát sinh) đã xử lý: tự lũy kế, không nhập tay — xem
 câu hỏi 4.
 
-**Không có tài khoản thì tính năng nằm im.** Nhập sản lượng là việc hằng ngày của 89 tổ
-trưởng. Nếu luồng tài khoản chưa xong thì màn hình có dựng xong cũng không ai dùng, và số
-liệu KPI "sản lượng thực tế" sẽ trống.
+**Tính năng dựng xong vẫn nằm im cho tới khi có tài khoản.** Nhập sản lượng là việc hằng
+ngày của 89 tổ trưởng. Đã quyết định tạo tài khoản sau, nên trong giai đoạn đó cột "Sản
+lượng thực tế" sẽ trống và không có gì để nghiệm thu ngoài dữ liệu thử. Chấp nhận được,
+miễn là không nhầm "chưa nhập" thành "làm được 0 đồng".
 
 ---
 
@@ -179,16 +180,40 @@ dòng nào đi cùng nhau.
 Giữ nguyên một trường `jobs.location`. Hai cột B và C của bảng cùng hiện một giá trị, đúng
 như bản in PGV đang làm. Không đụng tới dữ liệu đang có. Tách sau lúc nào cũng được.
 
-### 3. Tổ trưởng **chưa có tài khoản** — phải tạo cho 89 người
+### 3. Tổ trưởng chưa có tài khoản — **có email, và tạo sau cũng được**
 
-Đây là **việc phải xong trước** khi tính năng dùng được thật, và nó không nhỏ:
+Quyết định 11/08/2026: 89 tổ trưởng đều có email; tài khoản sẽ tạo sau, không chặn việc
+xây phần 2.
 
-* Cần luồng Admin mời tài khoản hàng loạt, gắn mỗi tài khoản với đúng tổ.
-* Dùng **luồng mời / đặt lại mật khẩu an toàn**, không đặt sẵn mật khẩu và không hiển thị
-  mật khẩu ở bất cứ đâu.
-* ⚠️ **Cần biết trước: 89 tổ trưởng có địa chỉ email không?** Supabase định danh người dùng
-  bằng email. Nếu không có thì phải chọn cách định danh khác, và đó là một thiết kế riêng
-  chứ không phải một ô nhập thêm.
+Điều này **được về mặt kỹ thuật**: không có gì trong phần 2 phụ thuộc vào việc tài khoản đã
+tồn tại. Bảng, hàm, màn hình, cột KPI đều dựng và kiểm thử được trước.
+
+Nhưng ba hệ quả phải biết trước:
+
+**(a) Cột "Sản lượng thực tế" trong KPI sẽ trống** cho tới khi tổ trưởng bắt đầu nhập. Đó
+là số đúng — chưa ai nhập thì chưa có sản lượng — nhưng nhìn vào dễ tưởng hỏng. Nên hiển
+thị rõ "chưa có dữ liệu nhập" thay vì số 0, vì 0 và "chưa nhập" là hai chuyện khác nhau.
+
+**(b) Nghiệm thu cần ít nhất 1–2 tài khoản tổ trưởng thật.** Không thể nghiệm thu luồng
+nhập hằng ngày bằng tài khoản Admin, vì Admin thấy mọi tổ còn tổ trưởng chỉ thấy tổ mình —
+đúng phần dễ sai nhất lại là phần không được kiểm.
+
+**(c) Luồng tạo tài khoản hiện có KHÔNG phải luồng mời.** Màn Phân Quyền hiện bắt Admin
+nhập **email và mật khẩu** (tối thiểu 8 ký tự) rồi gọi `createUser` với mật khẩu đó. Nghĩa
+là Admin phải tự nghĩ 89 mật khẩu, gõ vào, rồi chuyển cho từng người bằng cách nào đó.
+
+Cách làm đó **trái quy tắc đã đặt từ đầu dự án**: *"Không hỏi hoặc hiển thị mật khẩu; dùng
+luồng mời/reset an toàn."* Với một tài khoản Admin duy nhất thì chưa thành vấn đề; với 89
+người thì đây là 89 mật khẩu đi qua tin nhắn hoặc giấy.
+
+Nên trước khi phát tài khoản hàng loạt, cần bổ sung **luồng mời**: hệ thống gửi liên kết,
+người nhận tự đặt mật khẩu, Admin không bao giờ thấy. Đây là việc tách rời, làm lúc nào
+cũng được, nhưng phải xong **trước ngày phát tài khoản**, không phải trước ngày viết mã.
+
+**(d) Rào cản kỹ thuật khi phát hàng loạt: chưa cấu hình SMTP.** `supabase/config.toml`
+đang để trống phần `[auth.email.smtp]`, tức dùng dịch vụ thư mặc định của Supabase với giới
+hạn gửi rất thấp. Mời 89 người bằng thư sẽ đụng trần ngay. Trước ngày phát tài khoản phải
+cấu hình SMTP riêng (SendGrid hoặc tương đương).
 
 ### 4. Đào tạo / Phát sinh: **hiện trong bảng, không nhập tay, tự lũy kế theo ngày**
 
@@ -210,8 +235,8 @@ tiếp.
 ## 12. Thứ tự thi công đề nghị
 
 1. ~~Trả lời 4 câu hỏi ở mục 11~~ — đã trả lời 11/08/2026.
-2. Xác nhận 89 tổ trưởng có email hay không, rồi làm luồng mời tài khoản. Không có tài
-   khoản thì không ai nhập được số, nên phần còn lại có làm xong cũng chưa dùng được.
+2. Tạo **2–3 tài khoản tổ trưởng thử** để còn nghiệm thu được luồng nhập theo đúng vai trò.
+   (Luồng mời an toàn và cấu hình SMTP làm sau, trước ngày phát tài khoản cho cả 89 người.)
 3. Bảng sản lượng theo ngày + hàm nhập + khóa.
 4. **Cùng lúc** sửa luồng xóa tuần và script sao lưu (mục 7).
 5. Màn hình Đánh giá sản lượng + phân quyền theo tổ.
