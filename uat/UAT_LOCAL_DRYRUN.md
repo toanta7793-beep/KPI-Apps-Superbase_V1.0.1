@@ -583,6 +583,89 @@ Hai tài khoản tạo để đo đã xóa. Staging còn đúng **một tài kho
 (ADMIN). Dữ liệu nghiệp vụ không bị đụng: 49 hạng mục Cấp 1, 89 tổ, 1.000 công nhân,
 0 việc đang giao.
 
+
+## F2h. Vòng thay đổi theo yêu cầu vận hành 11/08/2026
+
+### Migration 040 — hạng mục Cấp 1 rỗng tự ngừng dùng
+
+Trước đây nạp file đơn giá mới chỉ chuyển các **dòng cấp 2** sang ngừng dùng, còn **hạng mục
+Cấp 1** thì không đụng tới. Người giao việc vẫn thấy hạng mục cũ trong danh sách chọn, bấm vào
+thì bên trong rỗng. Trên staging đã tích lại 7 hạng mục trong khi chỉ 5 hạng mục còn dòng đang dùng.
+
+Dùng `is_active = false` chứ không xóa cứng: `get_catalog_cap1` vốn đã lọc theo `is_active` nên
+với người dùng nó biến mất y như bị xóa, còn lịch sử việc cũ vẫn tra ngược được.
+
+| Kịch bản | Kết quả |
+|---|---|
+| Hạng mục rỗng, không ai dùng | **ngừng dùng** ✓ |
+| Hạng mục rỗng nhưng **còn việc chưa xóa** tham chiếu | **GIỮ LẠI** ✓ |
+| Hạng mục còn dòng trong file | giữ ✓ |
+| Nạp lại file có đủ hạng mục | **sống lại** ✓ |
+| `get_catalog_cap1` | 3 → 2 → 3 ✓ |
+
+Migration còn dọn một lần cho dữ liệu đang có, không phải chờ tới lần nạp file tiếp theo.
+
+### Migration 041 — gộp mã nhóm không còn bắt trùng vị trí
+
+Một tổ trong cùng một ngày có thể làm ở hai vị trí khác nhau, nên yêu cầu trùng vị trí là sai
+với cách làm ngoài công trường. Bỏ hẳn phép so vị trí; các điều kiện còn lại giữ nguyên vì
+chúng mới là thứ bảo đảm mã nhóm có nghĩa khi tính quân số.
+
+| Kịch bản | Kết quả |
+|---|---|
+| 3 việc cùng tổ, cùng ngày, cùng nhân sự, **khác vị trí** | **gộp được** → `MN-20260902-01` ✓ |
+| Một việc **thiếu vị trí** | vẫn chặn `GROUP_LOCATION_REQUIRED` ✓ |
+| Khác ngày | vẫn chặn `GROUP_DATE_MISMATCH` ✓ |
+| Khác cơ cấu nhân sự | vẫn chặn `GROUP_STAFFING_MISMATCH` ✓ |
+
+Ghi chú cho sau này: hiện "Phân khu" và "Vị trí chi tiết" trên phiếu in đều lấy từ **cùng một
+trường** `jobs.location`. Nếu tách thành các trường riêng thì có thể cân nhắc bắt trùng ở mức
+Phân khu mà vẫn cho khác Vị trí chi tiết.
+
+### 🐛 Bản in PDF cắt mất nội dung dài — đã sửa
+
+`cell()` cắt bớt số dòng vẽ ra bằng `.slice(0, floor((h-5)/(size+2)))`. Với chiều cao dòng **cố
+định 36** và cỡ chữ 7 thì chỉ vừa **3 dòng**; phần dư bị **bỏ đi âm thầm**, không dấu hiệu, không
+báo lỗi. PGV CNCH cũng vậy (cao 30, cỡ 6,2 → 3 dòng).
+
+Trái đúng quy tắc nghiệp vụ đã ghi trong `docs/BUSINESS_RULES.md`:
+*"Mẫu in giữ bố cục đã duyệt; nội dung dài co giãn, không cắt mất."*
+
+Thêm một lỗi nữa cùng chỗ: `split()` chỉ ngắt theo dấu cách, nên **một mã vật tư dài không có
+dấu cách** sẽ tràn ngang ra ngoài khung ô.
+
+Bản sửa: thêm `rowHeight()` tính chiều cao theo ô dài nhất của dòng, và cho `split()` cắt tiếp
+theo ký tự khi một từ đã rộng hơn ô. Áp cho cả PGV chung và PGV CNCH.
+
+4 test mới trong `web/tests/pgv-pdf-wrap.test.mjs` khóa lại: không dòng nào vượt bề rộng ô,
+ghép các dòng lại phải đúng nguyên văn (không mất chữ), chiều cao đủ để `cell()` không phải cắt,
+và nội dung ngắn vẫn giữ chiều cao tối thiểu để bố cục không co lại.
+
+### Bản in HTML với nội dung dài — không cắt
+
+Dựng lại phiếu bằng đúng `kpi.css` thật với nội dung dài như thực tế (kèm mã vật tư dài không
+dấu cách), rồi đo bằng trình duyệt:
+
+| Đo | Kết quả |
+|---|---|
+| Ô bị cắt chữ (`scrollHeight > clientHeight`) | **0** |
+| Ô tràn ngang (`scrollWidth > clientWidth`) | **0** |
+| Trang cuộn ngang | không |
+| Tỉ lệ cột | giữ đúng 31% / 10% |
+
+### Quân số nhiều mã nhóm — kiểm chứng trên giao diện
+
+Dựng 7 việc: 2 dòng lẻ + nhóm A (2 dòng × 1 thợ bậc 1) + nhóm B (3 dòng × 2 thợ bậc 2).
+
+| Bậc | Quân số | Đã giao | Đúng vì |
+|---|---|---|---|
+| Thợ bậc 1 | 1 | **1** | nhóm A 2 dòng chỉ tính 1 lần |
+| Thợ bậc 2 | 2 | **2** | nhóm B 3 dòng chỉ tính 1 lần |
+| Thợ bậc 3 | 2 | **2** | 2 dòng lẻ tính từng dòng |
+
+Nếu tính sai thì phải ra 2 / 6 / 2. Tổ trưởng (1 người) không xuất hiện trong bảng.
+Thêm 2 test: nhiều nhóm khác nhau, và tổ trưởng khai 5 người cũng không làm lệch quân số.
+
 ## F3. Chưa kiểm thử ở bước này
 
 Các mục sau **chỉ chạy được sau khi có staging thật + có dữ liệu giả đầy đủ**, chưa PASS:
@@ -590,9 +673,8 @@ Các mục sau **chỉ chạy được sau khi có staging thật + có dữ li�
 - **Bản in PDF với nội dung dài**: đã đối chiếu cấu trúc cột với PGV_MAU.xlsx, nhưng chưa in thử nội dung dài để xem có bị cắt chữ không.
 - **Phục hồi ngược trên staging**: cơ chế đã chứng minh trọn vẹn ở môi trường cục bộ. Trên staging chưa chạy vì
   phục hồi cần quyền ghi thẳng vào bảng `jobs` — đúng thiết kế, chỉ người có quyền chạy SQL mới làm được.
-- **Bản in PDF với nội dung dài**: đã đối chiếu cấu trúc cột với PGV_MAU.xlsx và chỉnh tỉ lệ
-  cột, nhưng chưa in thử nội dung dài để xem chữ có bị cắt không.
-- **Quân số nhiều mã nhóm**: đã kiểm ở tầng unit test; chưa dựng dữ liệu nhiều nhóm trên giao diện để đối chiếu số.
+- **In thử ra giấy**: đã kiểm bằng số đo (0 ô bị cắt) và bằng test cho PDF, nhưng chưa ai
+  in ra giấy A4 thật để nhìn tận mắt.
 - **Reset mật khẩu đầu-cuối**: endpoint chấp nhận yêu cầu, nhưng chưa mở email nhận link để đặt lại mật khẩu.
 - **Giao diện chạy trên chính staging**: đã kiểm chứng đầy đủ ở bản dựng cục bộ cùng commit; trên URL staging
   mới chỉ xác nhận trang đăng nhập render và các API trả đúng.
