@@ -54,6 +54,19 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+# setx ghi bien o pham vi User, nhung cua so PowerShell dang mo tu truoc do khong duoc nap
+# lai. Doc theo thu tu Process -> User -> Machine de khong bao "khong tim thay bien" trong
+# khi bien that su da duoc dat - loi do rat kho doan ra.
+function Get-DbUrl {
+  param([string]$Name)
+  foreach ($scope in @("Process", "User", "Machine")) {
+    $v = [Environment]::GetEnvironmentVariable($Name, $scope)
+    if (-not [string]::IsNullOrWhiteSpace($v)) { return $v }
+  }
+  return $null
+}
+
+
 function Say { param([string]$m, [string]$c = "White") Write-Host $m -ForegroundColor $c }
 
 if (-not (Test-Path $DumpFile)) { Say "Không thấy file: $DumpFile" Red; exit 2 }
@@ -91,7 +104,7 @@ Say ("Kích cỡ: {0:N1} MB" -f ($dump.Length / 1MB))
 Say ("Tạo lúc: {0}" -f $dump.LastWriteTime)
 Say ("Nhãn   : {0}" -f $fileLabel)
 
-$dbUrl = [Environment]::GetEnvironmentVariable($UrlEnvVar)
+$dbUrl = Get-DbUrl $UrlEnvVar
 if ([string]::IsNullOrWhiteSpace($dbUrl)) {
   Say ""
   Say "Chưa đặt biến môi trường $UrlEnvVar nên chưa có đích khôi phục." Yellow

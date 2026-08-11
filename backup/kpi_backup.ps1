@@ -39,6 +39,19 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+
+# setx ghi bien o pham vi User, nhung cua so PowerShell dang mo tu truoc do khong duoc nap
+# lai. Doc theo thu tu Process -> User -> Machine de khong bao "khong tim thay bien" trong
+# khi bien that su da duoc dat - loi do rat kho doan ra.
+function Get-DbUrl {
+  param([string]$Name)
+  foreach ($scope in @("Process", "User", "Machine")) {
+    $v = [Environment]::GetEnvironmentVariable($Name, $scope)
+    if (-not [string]::IsNullOrWhiteSpace($v)) { return $v }
+  }
+  return $null
+}
+
 $started = Get-Date
 
 function Write-Log {
@@ -53,7 +66,7 @@ $script:LogFile = Join-Path $OutputDir "backup.log"
 
 Write-Log "=== Bắt đầu sao lưu '$Label' ==="
 
-$dbUrl = [Environment]::GetEnvironmentVariable($UrlEnvVar)
+$dbUrl = Get-DbUrl $UrlEnvVar
 if ([string]::IsNullOrWhiteSpace($dbUrl)) {
   Write-Log "Không tìm thấy biến môi trường $UrlEnvVar. Xem phần hướng dẫn ở đầu file." "ERROR"
   exit 2

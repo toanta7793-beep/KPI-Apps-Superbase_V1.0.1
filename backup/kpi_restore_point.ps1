@@ -31,6 +31,19 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+
+# setx ghi bien o pham vi User, nhung cua so PowerShell dang mo tu truoc do khong duoc nap
+# lai. Doc theo thu tu Process -> User -> Machine de khong bao "khong tim thay bien" trong
+# khi bien that su da duoc dat - loi do rat kho doan ra.
+function Get-DbUrl {
+  param([string]$Name)
+  foreach ($scope in @("Process", "User", "Machine")) {
+    $v = [Environment]::GetEnvironmentVariable($Name, $scope)
+    if (-not [string]::IsNullOrWhiteSpace($v)) { return $v }
+  }
+  return $null
+}
+
 function Say { param([string]$m, [string]$c = "White") Write-Host $m -ForegroundColor $c }
 
 if ($Name -notmatch '^[a-z0-9][a-z0-9-]{2,58}$') {
@@ -73,7 +86,7 @@ try {
   # --- Phần 3: chụp TRẠNG THÁI để đối chiếu (không phải để nạp lại) ------------------
   # Ghi lại sổ migration và số dòng các bảng cốt lõi. Khôi phục xong thì đối chiếu với
   # các con số này; lệch là biết ngay chứ không phải đoán.
-  $dbUrl = [Environment]::GetEnvironmentVariable($UrlEnvVar)
+  $dbUrl = Get-DbUrl $UrlEnvVar
   if ([string]::IsNullOrWhiteSpace($dbUrl)) { Say "Thieu bien moi truong $UrlEnvVar." Red; exit 2 }
   $probe = @"
 select 'migration=' || string_agg(version, ',' order by version) from supabase_migrations.schema_migrations;
