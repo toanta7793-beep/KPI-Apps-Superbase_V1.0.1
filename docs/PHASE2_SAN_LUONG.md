@@ -57,15 +57,19 @@ liệu giao việc của tuần đó bị xóa.
 
 ---
 
-## 3. Ba thứ database hiện chưa có — phải làm mới hoàn toàn
+## 3. Những thứ database chưa có — phải làm mới
+
+> Đã rà lại 11/08/2026 sau khi đọc `danhgiasanluong.xlsx` và mã nguồn bản in.
+> **Còn hai, không phải ba.** Bản mô tả đầy đủ: [PHASE2_DANH_GIA_SAN_LUONG_SPEC.md](PHASE2_DANH_GIA_SAN_LUONG_SPEC.md).
 
 | Báo cáo cần | Hiện trạng |
 |---|---|
-| **"Mục tiêu hoàn thành" theo từng việc** | Không tồn tại. Trên PGV chung cột này để trống, viết tay. Trường `target` chỉ có ở `assignments` (phiếu CNCH, theo từng công nhân), không phải theo việc. |
+| ~~"Mục tiêu hoàn thành" theo từng việc~~ | **ĐÁNH GIÁ NÀY SAI, đã sửa 11/08/2026.** Nó có sẵn: cột 8 của PGV chung đang in `jobs.quantity` + đơn vị. Tôi đã kết luận là "để trống, viết tay" mà không đọc mã nguồn bản in. Không phải làm mới. |
 | **Phân khu tách khỏi Vị trí chi tiết** | Chỉ có một trường `jobs.location`. Bản in đang lấy cùng một trường cho cả hai cột. |
 | **Khối lượng hoàn thành theo NGÀY** | Không tồn tại. `assignments.completed_qty` là kiểu **chữ**, theo từng công nhân, và chỉ giữ trạng thái hiện hành — không phải lịch sử theo ngày, không cộng dồn được. |
 
-Không tận dụng lại được cái nào. Đây là lý do phần 2 không phải một tính năng nhỏ.
+Hai thứ còn lại vẫn phải làm mới hoàn toàn. Phần 2 vẫn là phân hệ thứ hai của hệ thống,
+chỉ là nhẹ hơn ước lượng ban đầu một phần.
 
 ---
 
