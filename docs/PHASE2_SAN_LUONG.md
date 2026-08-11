@@ -17,6 +17,8 @@ hiện trạng hệ thống**. Phần mở rộng CHƯA thực thi, theo đúng 
 | KPI tính theo tuần, có bộ lọc Tuần 1–4 | 042 |
 | Việc chưa gộp tuần bị loại khỏi KPI | 042 |
 | Quỹ lương tính theo số ngày của cả tuần | 043 |
+| Giám sát xem được KPI các tổ mình phụ trách | 044 |
+| Quy trình cắt phiên bản và quay về phiên bản cũ | [VERSIONING.md](VERSIONING.md) |
 
 ---
 
@@ -97,20 +99,20 @@ Người dùng đã chọn không lưu lịch sử sửa đổi. Hệ quả: **A
 dùng để tính KPI mà không để lại dấu vết nào.** Với một Admin duy nhất là chấp nhận được;
 nếu sau này có nhiều Admin thì nên xem lại. Ghi ở đây để sau này không ai bất ngờ.
 
-### 5.3 Hai câu hỏi còn mở
+### 5.3 Hai câu hỏi — đã trả lời 11/08/2026
 
-**(a) Giám sát có được xem màn hình KPI không?**
-`get_kpi_evaluation` hiện **chỉ ADMIN chạy được**. Giám sát hôm nay không mở được màn KPI.
-Yêu cầu "giám sát xuất các tổ của mình" vì vậy không phải thêm một cái nút, mà là **mở
-quyền xem màn KPI cho giám sát** với phạm vi theo `profile_teams`. Cần biết: giám sát được
-**nhìn thấy số** (quỹ lương, chênh lệch, ĐẠT/KHÔNG ĐẠT) của tổ mình, hay **chỉ được xuất
-file** mà không xem trên màn hình? Hai cái khác nhau về mức độ lộ số lương.
+**(a) Giám sát có được xem màn hình KPI không? → CÓ, chỉ tổ mình phụ trách.**
+Đã làm ở migration 044. Admin xem tất cả, giám sát xem các tổ có trong `profile_teams`,
+các vai trò còn lại vẫn không xem được. Phạm vi do database quyết định, giao diện không
+lọc lại. Riêng phần **xuất Excel** người dùng sẽ bàn sau ở bài toán phát triển tiếp.
 
-**(b) Các tổ có bao giờ chạy tuần lệch ngày nhau không?**
-Hệ thống hiện chỉ có **4 ô tuần dùng chung cho cả 89 tổ**. Admin đặt khoảng ngày một lần,
-hệ thống chép xuống mọi tổ. Không thể để Tổ A chạy 01→05/09 còn Tổ B chạy 03→07/09. Nếu
-ngoài thực tế có lệch, hệ thống hiện **không diễn tả được**, và điều đó ảnh hưởng thẳng
-tới quỹ lương vì quỹ lương nay tính theo số ngày của tuần.
+**(b) Các tổ có bao giờ chạy tuần lệch ngày nhau không? → KHÔNG BAO GIỜ.**
+Admin đặt sẵn tuần cho toàn công ty, mọi tổ chạy cùng một khoảng ngày. Vì vậy thiết kế
+hiện tại — 4 ô tuần dùng chung cho tất cả các tổ — là **đúng với thực tế vận hành**, không
+phải hạn chế cần khắc phục. Rủi ro này coi như đóng.
+
+Hệ quả kèm theo: quỹ lương tính theo số ngày của tuần (migration 043) là đồng nhất cho mọi
+tổ, không có trường hợp hai tổ cùng tuần mà khác số ngày.
 
 ---
 
@@ -132,11 +134,11 @@ tới quỹ lương vì quỹ lương nay tính theo số ngày của tuần.
 | Điểm yếu | Mức | Ghi chú |
 |---|---|---|
 | **Không có PITR** | Cao | Không mua gói Pro nên không quay lại được thời điểm bất kỳ. Chỉ quay về được các mốc **tự chụp bằng tay**. Giữa hai mốc là mất. |
-| **Không có migration lùi** | Cao | Sai cấu trúc bảng thì phải viết migration đảo ngược hoặc dựng project mới. Không có nút hoàn tác. |
+| **Không có migration lùi cho 001–044** | Trung bình | Đây là mốc nền, chấp nhận được. Từ **045 trở đi bắt buộc có script hoàn tác**, `kpi_release.ps1` không cho cắt phiên bản nếu thiếu. Xem [VERSIONING.md](VERSIONING.md). |
 | **Tài khoản đăng nhập không được sao lưu** | Trung bình | Cố ý (tránh để mã băm mật khẩu trong file backup). Mất project là phải mời lại toàn bộ người dùng. |
-| **4 ô tuần dùng chung cho 89 tổ** | Trung bình | Xem 5.3(b). |
+| ~~4 ô tuần dùng chung cho 89 tổ~~ | — | **Đã đóng.** Các tổ không bao giờ chạy lệch tuần, nên đây là thiết kế đúng chứ không phải hạn chế. |
 | **Hai Admin sửa cùng ô tuần** | Thấp | Không loạn dữ liệu (có khóa xử lý), nhưng **người sau đè người trước, không cảnh báo**. Chỉ thành vấn đề khi có nhiều hơn một Admin. |
-| **Màn KPI chỉ Admin xem được** | Trung bình | Giám sát không tự theo dõi được tổ mình. Xem 5.3(a). |
+| ~~Màn KPI chỉ Admin xem được~~ | — | **Đã xử lý** ở migration 044: giám sát xem được KPI các tổ mình phụ trách. |
 | **Staging đang chứa dữ liệu thật** | Trung bình | 89 tổ, 1000 công nhân thật. Thử nghiệm trên đó là thử trên dữ liệu thật. |
 | **Chưa có production** | — | Đúng kế hoạch. Chưa được phép cutover khi chưa có UAT PASS và phê duyệt. |
 
@@ -144,7 +146,7 @@ tới quỹ lương vì quỹ lương nay tính theo số ngày của tuần.
 
 ## 7. Thứ tự đề nghị khi bắt tay làm phần 2
 
-1. Trả lời hai câu hỏi ở 5.3.
+1. ~~Trả lời hai câu hỏi ở 5.3~~ — đã trả lời 11/08/2026.
 2. Thêm trường "Mục tiêu hoàn thành" theo việc + tách Phân khu / Vị trí chi tiết.
    Làm trước vì cả báo cáo lẫn bản in đều phụ thuộc.
 3. Bảng sản lượng theo ngày + khóa sau xác nhận.
