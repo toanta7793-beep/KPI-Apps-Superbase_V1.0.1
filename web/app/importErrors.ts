@@ -74,6 +74,15 @@ const OPERATION_MESSAGES:Array<[RegExp,string]>=[
   [/GROUP_METRICS_INCOMPLETE/,"Thiếu số liệu để tính nhóm. Kiểm tra khối lượng và đơn giá."],
   [/GROUP_NOT_FOUND|GROUP_CODE_REQUIRED/,"Không tìm thấy mã nhóm."],
   [/GROUP_VALIDATION_FAILED/,"Nhóm việc không hợp lệ nên hệ thống đã hủy toàn bộ thao tác."],
+  // Sản lượng theo ngày (phần 2). Thiếu nhóm này thì người dùng nhận mã lỗi thô như
+  // "PRODUCTION_LOCKED" — đúng nghĩa nhưng không ai ngoài lập trình viên hiểu.
+  [/PRODUCTION_LOCKED/,"Số liệu ngày này đã được lưu và khóa. Chỉ Quản trị viên mở khóa để sửa lại được."],
+  [/PRODUCTION_DATE_OUTSIDE_JOB/,"Ngày ghi nằm ngoài khoảng ngày của công việc. Chọn lại ngày trong khoảng đã giao."],
+  [/PRODUCTION_QTY_INVALID/,"Khối lượng hoàn thành phải là số không âm."],
+  [/SPECIAL_LABOR_AUTO_ACCUMULATED/,"Việc Đào tạo / Phát sinh được hệ thống tự lũy kế theo ngày, không nhập tay."],
+  [/PRODUCTION_ROW_NOT_FOUND/,"Không tìm thấy dòng sản lượng của ngày này để mở khóa."],
+  [/PRODUCTION_CHANGED_AFTER_SNAPSHOT/,"Có người vừa nhập thêm sản lượng sau khi chụp ảnh backup, nên hệ thống KHÔNG xóa gì. Hãy chạy lại từ đầu."],
+  [/PRODUCTION_ARCHIVE_COUNT_MISMATCH|PRODUCTION_DELETE_COUNT_MISMATCH/,"Số dòng sản lượng không khớp nên hệ thống đã dừng và KHÔNG xóa gì."],
   // Xóa tuần / backup
   [/BACKUP_NOT_VERIFIED|INVALID_BACKUP_PROOF/,"Chưa xác minh được file backup nên hệ thống KHÔNG xóa gì. Dữ liệu tuần vẫn nguyên vẹn."],
   [/ARCHIVE_COUNT_MISMATCH|DELETE_COUNT_MISMATCH/,"Số dòng backup không khớp số dòng thực tế nên hệ thống đã dừng và KHÔNG xóa gì."],

@@ -4,7 +4,7 @@
 > này là đủ để (a) dựng một bản sao độc lập cho dự án khác, hoặc (b) sửa và cải tiến hệ
 > thống hiện tại mà không phá vỡ nghiệp vụ.
 >
-> Trạng thái: đang chạy trên staging. 46 migration, 37 hàm RPC, 23 bảng, 6 view, 29 test.
+> Trạng thái: đang chạy trên staging. 47 migration, 37 hàm RPC, 23 bảng, 6 view, 37 test.
 > Không có production. Ngày lập: 11/08/2026.
 
 ---
@@ -117,11 +117,11 @@ Hệ quả cụ thể:
 ### Cấu trúc thư mục
 
 ```
-supabase/migrations/     46 file, chạy tiến, đánh số 001→049
+supabase/migrations/     47 file, chạy tiến, đánh số 001→050
 supabase/rollback/       script hoàn tác, BẮT BUỘC từ 045 trở đi
 web/app/                 màn hình React (12 file .tsx)
 web/lib/                 tiện ích: xlsx, pdf, supabase client
-web/tests/               29 test node:test, chạy bằng npm run test
+web/tests/               37 test node:test, chạy bằng npm run test
 backup/                  script sao lưu / khôi phục / điểm khôi phục (PowerShell)
 scripts/                 script cắt phiên bản, đóng gói bàn giao
 docs/                    tài liệu nghiệp vụ và vận hành
@@ -347,7 +347,7 @@ thường vẫn chạy được, và đó chính là vấn đề: không có tí
 
 ---
 
-## PHẦN 9 — Mười sáu lỗi đã gặp và bài học
+## PHẦN 9 — Mười tám lỗi đã gặp và bài học
 
 **Đây là phần giá trị nhất của tài liệu.** Mỗi mục là một lỗi thật đã tốn thời gian.
 
@@ -410,6 +410,34 @@ biến" trong khi biến rõ ràng đã đặt. → đọc lần lượt Process
 dữ liệu thiếu ra khỏi kết quả. Người quản lý sẽ không biết bảng đang thiếu tổ — tệ hơn là
 không có số. → **thà báo lỗi cả màn hình còn hơn hiển thị một bảng thiếu mà trông vẫn bình thường.**
 
+### Nhóm D — Tìm ra trong đợt QA 12/08/2026
+
+**17. Mã lỗi mới không có bản dịch.** Cả 8 mã lỗi của phân hệ sản lượng (`PRODUCTION_LOCKED`,
+`SPECIAL_LABOR_AUTO_ACCUMULATED`…) chưa được đưa vào bảng dịch, nên người dùng nhận đúng
+chữ `PRODUCTION_LOCKED` trên màn hình. → **thêm mã lỗi ở SQL thì phải thêm bản dịch cùng lúc.**
+
+Kèm một bẫy về thứ tự: bảng dịch duyệt theo thứ tự và **dừng ở dòng khớp đầu tiên**. Chuỗi
+`ARCHIVE_COUNT_MISMATCH` là chuỗi con của `PRODUCTION_ARCHIVE_COUNT_MISMATCH`, nên dòng
+`PRODUCTION_*` phải đứng TRƯỚC dòng chung mới thắng. Đã khóa bằng test.
+
+**18. Kiểm-rồi-ghi trong `save_daily_production`.** Hàm làm hai bước tách rời: SELECT xem đã
+có dòng chưa, rồi mới INSERT. Hai người cùng ghi một việc trong một ngày thì cả hai đều thấy
+"chưa có" và cùng INSERT; người thứ hai nhận lỗi Postgres thô
+`duplicate key value violates unique constraint` — vừa không có bản dịch, vừa nói sai bản
+chất (sự thật là dòng vừa bị người khác khóa).
+
+Đã sửa ở migration 050 bằng **một câu lệnh nguyên tử**:
+`insert ... on conflict (job_id, work_date) do update ... where d.is_locked = false`.
+Dòng đang khóa thì mệnh đề `where` không thỏa, không có dòng nào trả về, hàm báo đúng
+`PRODUCTION_LOCKED`.
+
+Chứng minh bằng cách nới rộng khe hở (thêm `pg_sleep` vào giữa hai bước) rồi chạy 3 tiến
+trình song song: bản cũ cho 1 thành công + 2 lỗi trùng khóa; bản mới cho 1 thành công +
+2 lần `PRODUCTION_LOCKED`.
+
+> Bài học chung: **kiểm tra rồi mới ghi (check-then-act) luôn có khe hở.** Trong database,
+> gộp thành một câu lệnh nguyên tử; đừng dựa vào việc "khe hở nhỏ nên chắc không trúng".
+
 ### Nguyên tắc rút ra
 
 > * Sai theo hướng **ồn ào** (báo lỗi, tính thừa chi phí) chứ đừng sai theo hướng **im lặng**.
@@ -455,7 +483,7 @@ Trước khi chạy migration phải **in ra tên và ref của project đích v
 |---|---|
 | Luồng mời tài khoản an toàn + cấu hình SMTP | **chưa làm** — hiện Admin phải tự đặt mật khẩu, trái quy tắc dự án |
 | Tài khoản cho 89 tổ trưởng | chưa tạo (đã có 3 tài khoản thử) |
-| Xuất Excel báo cáo | chưa làm, để bàn sau |
+| ~~Xuất Excel báo cáo~~ | **đã làm 12/08/2026** — nút ở màn Đánh giá sản lượng và Đánh giá KPI, chỉ Admin |
 | Tách Phân khu / Vị trí chi tiết | chưa làm, đã quyết định hoãn |
 | Production | chưa có, đúng kế hoạch |
 | Hẹn giờ sao lưu tự động | chưa đặt lịch |

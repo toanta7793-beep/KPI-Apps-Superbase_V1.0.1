@@ -146,7 +146,7 @@ try {
   [void]$sb.AppendLine("Ban vua nhan toan bo mot he thong dang chay that: quan ly giao viec va dinh muc KPI")
   [void]$sb.AppendLine("cho cac to doi thi cong co dien (MEP). Truoc khi de xuat bat ky thay doi nao:")
   [void]$sb.AppendLine("")
-  [void]$sb.AppendLine("1. **Doc PHAN 2** (12 quy tac nghiep vu) va **PHAN 9** (16 loi da gap) cua tai lieu")
+  [void]$sb.AppendLine("1. **Doc PHAN 2** (12 quy tac nghiep vu) va **PHAN 9** (18 loi da gap) cua tai lieu")
   [void]$sb.AppendLine("   ban giao truoc tien. Phan 9 la nhung loi da ton thoi gian that - dung lap lai.")
   [void]$sb.AppendLine("2. **Moi quy tac nghiep vu nam o tang database**, khong phai o giao dien. Sua quy tac thi")
   [void]$sb.AppendLine("   sua o SQL, va phai ra soat xem quy tac do co ban sao o giao dien hay trong view khong.")

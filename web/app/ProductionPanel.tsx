@@ -3,6 +3,8 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { operationError } from "./importErrors";
 import { DateInput } from "./DateInput";
+import { asciiFileName, buildTableXlsx, downloadXlsx } from "../lib/exportXlsx";
+import { PRODUCTION_EXPORT_COLUMNS, toProductionExportRows } from "./exportRows";
 
 type Team={id:string;leader_name:string;is_active:boolean};
 type SharedWeek={week_slot:number;start_date:string;end_date:string};
@@ -24,8 +26,8 @@ const isoToday=()=>new Date().toISOString().slice(0,10);
 // thì người dùng biết ngay vì sao ô bị mờ thay vì bấm xong mới nhận mã lỗi.
 const inRange=(row:ProductionRow,date:string)=>date>=row.start_date&&date<=row.end_date;
 
-export function ProductionPanel({teams,sharedWeeks,canUnlock,defaultTeam,notify}:{
-  teams:Team[];sharedWeeks:SharedWeek[];canUnlock:boolean;defaultTeam:string;notify:(text:string)=>void;
+export function ProductionPanel({teams,sharedWeeks,canUnlock,canExport,defaultTeam,notify}:{
+  teams:Team[];sharedWeeks:SharedWeek[];canUnlock:boolean;canExport:boolean;defaultTeam:string;notify:(text:string)=>void;
 }){
   const [teamId,setTeamId]=useState(defaultTeam);
   const [weekSlot,setWeekSlot]=useState<string>("");
@@ -94,6 +96,16 @@ export function ProductionPanel({teams,sharedWeeks,canUnlock,defaultTeam,notify}
     await reload();
   }
 
+  function exportExcel(){
+    if(!canExport){notify("Chỉ Quản trị viên được xuất dữ liệu.");return}
+    if(!rows.length){notify("Không có dòng nào để xuất.");return}
+    const team=teamId?(activeTeams.find(t=>t.id===teamId)?.leader_name||"To"):"TatCa";
+    const week=weekSlot?`Tuan${weekSlot}`:"CacTuan";
+    downloadXlsx(buildTableXlsx("DanhGiaSanLuong",PRODUCTION_EXPORT_COLUMNS,toProductionExportRows(rows)),
+      asciiFileName(`DanhGiaSanLuong_${team}_${week}_${workDate}`)+".xlsx");
+    notify(`Đã xuất ${rows.length} dòng.`);
+  }
+
   const activeTeams=teams.filter(team=>team.is_active);
   return <>
     <div className="card no-print"><div className="card-header"><span className="ch-icon">📈</span><span className="ch-title">Đánh Giá Sản Lượng</span></div>
@@ -109,6 +121,9 @@ export function ProductionPanel({teams,sharedWeeks,canUnlock,defaultTeam,notify}
               return <option key={slot} value={slot}>{week?`Tuần ${slot}: ${viDate(week.start_date)}–${viDate(week.end_date)}`:`Tuần ${slot} (chưa tạo)`}</option>})}
           </select>
           <DateInput value={workDate} onChange={value=>{setBusy(true);setWorkDate(value)}}/>
+          {/* Chỉ Admin thấy nút này. Giao diện chỉ ẩn đi; dữ liệu thì database đã giới hạn
+              theo tổ của từng người từ trước rồi. */}
+          {canExport&&<button className="btn btn-secondary" disabled={busy||!rows.length} onClick={exportExcel}>⬇️ Xuất Excel</button>}
         </div>
         <p className="import-help">Ghi khối lượng làm được <strong>trong ngày {viDate(workDate)}</strong>, không phải lũy kế — hệ thống tự cộng dồn. Lưu là khóa.</p>
         {error&&<div className="toast error static-toast">{error}</div>}
