@@ -107,6 +107,9 @@ export function ProductionPanel({teams,sharedWeeks,canUnlock,canExport,defaultTe
   }
 
   const activeTeams=teams.filter(team=>team.is_active);
+  // Nhãn nút phải nói đúng phạm vi sắp xuất. Người dùng đang lọc một tổ mà nút chỉ ghi
+  // "Xuất Excel" thì không có cách nào biết file sẽ có một tổ hay tất cả.
+  const teamCount=new Set(rows.map(row=>row.team_name)).size;
   return <>
     <div className="card no-print"><div className="card-header"><span className="ch-icon">📈</span><span className="ch-title">Đánh Giá Sản Lượng</span></div>
       <div className="card-body">
@@ -123,9 +126,9 @@ export function ProductionPanel({teams,sharedWeeks,canUnlock,canExport,defaultTe
           <DateInput value={workDate} onChange={value=>{setBusy(true);setWorkDate(value)}}/>
           {/* Chỉ Admin thấy nút này. Giao diện chỉ ẩn đi; dữ liệu thì database đã giới hạn
               theo tổ của từng người từ trước rồi. */}
-          {canExport&&<button className="btn btn-secondary" disabled={busy||!rows.length} onClick={exportExcel}>⬇️ Xuất Excel</button>}
+          {canExport&&<button className="btn btn-secondary" disabled={busy||!rows.length} onClick={exportExcel}>⬇️ Xuất Excel ({rows.length} dòng · {teamCount} tổ)</button>}
         </div>
-        <p className="import-help">Ghi khối lượng làm được <strong>trong ngày {viDate(workDate)}</strong>, không phải lũy kế — hệ thống tự cộng dồn. Lưu là khóa.</p>
+        <p className="import-help">Ghi khối lượng làm được <strong>trong ngày {viDate(workDate)}</strong>, không phải lũy kế — hệ thống tự cộng dồn. Lưu là khóa.{canExport&&<> Muốn xuất Excel <strong>tất cả các tổ</strong>: chọn “Tất cả Tổ” và “Tất cả các tuần” rồi bấm nút xuất.</>}<br/>Bảng chỉ hiện việc <strong>đã gộp vào tuần</strong>; việc chưa gộp tuần không nằm ở đây, giống quy tắc của màn KPI.</p>
         {error&&<div className="toast error static-toast">{error}</div>}
         {busy&&<div className="loading-text">Đang tải…</div>}
       </div>
