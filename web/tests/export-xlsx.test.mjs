@@ -122,3 +122,50 @@ test("áp dụng gợi ý số ngày đặt đúng ngày kết thúc (tính cả
   assert.equal(endDateFor("2026-09-01", 5), "2026-09-05");
   assert.equal(endDateFor("2026-09-01", 1), "2026-09-01");
 });
+
+// --- AI tìm hạng mục: hàng rào chống bịa ---------------------------------------------------
+import { decideSearchPath, gomCap1, locKetQuaAI, dungPromptUngVien } from "../lib/catalogSearchLogic.ts";
+
+const cand = (id, cat, ct, khop, tong) => ({
+  price_item_id: id, category_name: cat, content: ct, unit: "m", calc_price: 50000,
+  so_tu_khop: khop, tong_so_tu: tong, khop_het: khop === tong,
+});
+
+test("khớp hết từ khóa thì KHÔNG gọi AI — nhanh hơn, miễn phí, chính xác hơn", () => {
+  const out = decideSearchPath([cand("a", "CTN", "Ống uPVC D110", 3, 3), cand("b", "CTN", "Cút uPVC D110", 2, 3)]);
+  assert.equal(out.nguon, "tim-thuong");
+  assert.equal(out.ket_qua.length, 1, "chỉ trả dòng khớp hết");
+});
+
+test("không dòng nào khớp hết thì mới hỏi AI, và giới hạn số ứng viên gửi đi", () => {
+  const rows = Array.from({ length: 60 }, (_, i) => cand(`id${i}`, "CTN", `Việc ${i}`, 2, 3));
+  const out = decideSearchPath(rows);
+  assert.equal(out.nguon, "can-ai");
+  assert.equal(out.ung_vien.length, 40, "gửi quá nhiều ứng viên là tốn tiền và chậm");
+});
+
+test("AI trả về id BỊA RA thì bị loại — đây là hàng rào quan trọng nhất", () => {
+  const ungVien = [cand("that-1", "CTN", "Phễu thu sàn DN100", 2, 3)];
+  const got = locKetQuaAI({ chon: [{ id: "khong-ton-tai", ly_do: "bịa" }, { id: "that-1", ly_do: "đúng cỡ" }] }, ungVien);
+  assert.equal(got.length, 1, "id không có trong danh sách ứng viên phải bị loại");
+  assert.equal(got[0].price_item_id, "that-1");
+  assert.equal(got[0].content, "Phễu thu sàn DN100", "nội dung lấy từ danh mục, KHÔNG lấy từ lời mô hình");
+});
+
+test("AI trả về id trùng, rác, hoặc sai kiểu đều không làm vỡ", () => {
+  const ungVien = [cand("x", "CTN", "Ống D110", 2, 3)];
+  assert.equal(locKetQuaAI({ chon: [{ id: "x" }, { id: "x" }] }, ungVien).length, 1, "trùng chỉ lấy một");
+  assert.equal(locKetQuaAI({ chon: [123, null, { ly_do: "thiếu id" }] }, ungVien).length, 0);
+  assert.equal(locKetQuaAI("không phải json", ungVien).length, 0);
+  assert.equal(locKetQuaAI({}, ungVien).length, 0);
+});
+
+test("gom Hạng mục Cấp 1 kèm số lượng, nhiều nhất lên đầu", () => {
+  const g = gomCap1([cand("1", "CTN HẦM", "a", 1, 1), cand("2", "CTN CAO TẦNG", "b", 1, 1), cand("3", "CTN HẦM", "c", 1, 1)]);
+  assert.deepEqual(g, [{ category_name: "CTN HẦM", so_muc: 2 }, { category_name: "CTN CAO TẦNG", so_muc: 1 }]);
+});
+
+test("gửi cho AI không kèm thứ gì ngoài dữ liệu danh mục", () => {
+  const [p] = dungPromptUngVien([cand("id1", "CTN", "Ống D110", 2, 3)]);
+  assert.deepEqual(Object.keys(p).sort(), ["don_gia", "don_vi", "hang_muc", "id", "noi_dung"]);
+});
