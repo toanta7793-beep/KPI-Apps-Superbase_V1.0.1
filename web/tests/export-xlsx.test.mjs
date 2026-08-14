@@ -74,3 +74,51 @@ test("mã lỗi sản lượng dịch đúng, không bị dòng chung nuốt m�
   assert.match(operationError("PRODUCTION_ARCHIVE_COUNT_MISMATCH"), /sản lượng không khớp/);
   assert.match(operationError("ARCHIVE_COUNT_MISMATCH"), /Số dòng backup không khớp/);
 });
+
+// --- Gợi ý nhân công / ngày / khối lượng -------------------------------------------------
+import { buildSuggestParams, workDays, endDateFor } from "../app/suggestParams.ts";
+
+const form = (over = {}) => ({
+  teamId: "t1", category: "HM", content: "Ống uPVC D110",
+  start: "2026-09-01", end: "2026-09-05", quantity: "145",
+  counts: { leader: "1", w1: "0", w2: "2", w3: "0", helper: "0" }, ...over,
+});
+
+test("số ngày tính CẢ hai đầu, giống work_days của công thức", () => {
+  assert.equal(workDays("2026-09-01", "2026-09-05"), 5);
+  assert.equal(workDays("2026-09-01", "2026-09-01"), 1);
+  assert.equal(workDays("2026-09-05", "2026-09-01"), 0, "ngày kết thúc trước ngày bắt đầu là không hợp lệ");
+});
+
+test("ẩn số phải gửi null — hàm SQL dựa vào đó để biết cần giải cho cái gì", () => {
+  const crew = buildSuggestParams(form(), "NHAN_CONG");
+  assert.equal(crew.p_count_worker1, null, "hỏi nhân công thì cơ cấu phải null");
+  assert.equal(crew.p_quantity, 145);
+  assert.equal(crew.p_work_days, 5);
+
+  const days = buildSuggestParams(form(), "SO_NGAY");
+  assert.equal(days.p_work_days, null, "hỏi số ngày thì số ngày phải null");
+  assert.equal(days.p_count_worker2, 2);
+
+  const qty = buildSuggestParams(form(), "KHOI_LUONG");
+  assert.equal(qty.p_quantity, null, "hỏi khối lượng thì khối lượng phải null");
+  assert.equal(qty.p_work_days, 5);
+});
+
+test("tổ trưởng KHÔNG được gửi đi — không nằm trong quỹ lương ngày", () => {
+  const p = buildSuggestParams(form(), "SO_NGAY");
+  assert.ok(!("p_count_leader" in p), "gửi tổ trưởng lên là sai công thức hòa vốn");
+});
+
+test("thiếu dữ kiện thì nói rõ thiếu gì, không gửi đi rồi mới báo", () => {
+  assert.match(buildSuggestParams(form({ teamId: "" }), "NHAN_CONG").error, /Tổ/);
+  assert.match(buildSuggestParams(form({ content: "" }), "NHAN_CONG").error, /đơn giá/);
+  assert.match(buildSuggestParams(form({ quantity: "0" }), "NHAN_CONG").error, /khối lượng/i);
+  assert.match(buildSuggestParams(form({ counts: { leader: "1", w1: "0", w2: "0", w3: "0", helper: "0" } }), "SO_NGAY").error, /nhân công/i);
+  assert.match(buildSuggestParams(form({ start: "", end: "" }), "KHOI_LUONG").error, /ngày/i);
+});
+
+test("áp dụng gợi ý số ngày đặt đúng ngày kết thúc (tính cả hai đầu)", () => {
+  assert.equal(endDateFor("2026-09-01", 5), "2026-09-05");
+  assert.equal(endDateFor("2026-09-01", 1), "2026-09-01");
+});

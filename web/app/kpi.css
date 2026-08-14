@@ -401,3 +401,18 @@ button.nav-item { width:calc(100% - 16px); border:0; text-align:left; background
 .kpi-actual.ontrack{border-left-color:var(--vc-green);background:var(--vc-green-bg)}
 .kpi-actual.ontrack b{color:var(--vc-green)}
 .kpi-actual.pending b{font-size:13px;font-weight:600}
+
+/* Bảng gợi ý trong màn Giao Việc. Cố ý tách khỏi ô xem trước lãi/lỗ bên dưới: một cái là
+   ĐỀ XUẤT chưa áp dụng, một cái là KẾT QUẢ của số đang nhập. Trộn hai thứ vào một khối màu
+   thì người dùng không biết con số nào là thật. */
+.suggest-box{margin-top:12px;padding:11px 12px;border:1px dashed var(--vc-navy-light);border-radius:11px;background:#f7f9ff}
+.suggest-head{display:flex;align-items:center;gap:9px;flex-wrap:wrap;font-size:13px;font-weight:700;color:var(--vc-navy)}
+.suggest-head .form-control{flex:1;min-width:190px;padding:5px 8px;font-size:12px}
+.suggest-hint{display:block;margin-top:6px;color:var(--vc-text-sub);font-size:11px}
+.suggest-note{margin-top:8px;padding:7px 9px;border-radius:8px;background:#fff4e5;color:#8a4b00;font-size:12px;line-height:1.45}
+.suggest-row{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;margin-top:7px;
+  padding:8px 10px;border:1px solid var(--vc-border);border-radius:9px;background:#fff;cursor:pointer;text-align:left;font-size:12px}
+.suggest-row:hover{border-color:var(--vc-navy);background:#eef3ff}
+.suggest-main{font-weight:700;color:var(--vc-navy)}
+.suggest-diff{color:var(--vc-green);font-weight:700;white-space:nowrap}
+@media(max-width:640px){.suggest-row{flex-direction:column;align-items:flex-start;gap:3px}}
