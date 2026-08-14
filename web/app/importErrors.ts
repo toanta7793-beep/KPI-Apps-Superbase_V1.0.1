@@ -74,6 +74,8 @@ const OPERATION_MESSAGES:Array<[RegExp,string]>=[
   [/GROUP_METRICS_INCOMPLETE/,"Thiếu số liệu để tính nhóm. Kiểm tra khối lượng và đơn giá."],
   [/GROUP_NOT_FOUND|GROUP_CODE_REQUIRED/,"Không tìm thấy mã nhóm."],
   [/GROUP_VALIDATION_FAILED/,"Nhóm việc không hợp lệ nên hệ thống đã hủy toàn bộ thao tác."],
+  // Gợi ý nhân công / ngày / khối lượng (migration 052)
+  [/SPECIAL_LABOR_NO_SUGGESTION/,"Việc Đào tạo / Phát sinh có khối lượng tự sinh theo số người × số ngày, không có gì để gợi ý."],
   // Sản lượng theo ngày (phần 2). Thiếu nhóm này thì người dùng nhận mã lỗi thô như
   // "PRODUCTION_LOCKED" — đúng nghĩa nhưng không ai ngoài lập trình viên hiểu.
   [/PRODUCTION_LOCKED/,"Số liệu ngày này đã được lưu và khóa. Chỉ Quản trị viên mở khóa để sửa lại được."],
