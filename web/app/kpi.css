@@ -363,6 +363,9 @@ button.nav-item { width:calc(100% - 16px); border:0; text-align:left; background
 .pgv-work .c-muctieu{width:10%}
 .pgv-work .c-batdau,.pgv-work .c-ketthuc{width:7%}.pgv-work .c-danhgia{width:7%}.pgv-work .c-ghichu{width:5%}
 .pgv-work td:nth-child(6){text-align:left}
+/* Dòng gộp theo mã nhóm: mỗi hạng mục một dòng riêng trong cùng một ô, gạch phân cách nhẹ. */
+.pgv-work .cell-line{display:block;padding:1px 0}
+.pgv-work .cell-line+.cell-line{border-top:1px dashed #cbd5e1;margin-top:2px;padding-top:3px}
 /* Ghi chú trong nhãn cột hẹp phải xuống dòng gọn, không đẩy vỡ khung. */
 .pgv-work th .th-hint{overflow-wrap:anywhere;hyphens:auto}.sheet-signatures span:empty{min-height:72px;display:block}
 

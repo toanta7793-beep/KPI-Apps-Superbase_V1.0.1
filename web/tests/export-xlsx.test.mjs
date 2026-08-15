@@ -32,7 +32,7 @@ test("tên sheet quá dài hoặc có ký tự cấm được cắt gọn — Ex
   const wb = strFromU8(unzipSync(buildTableXlsx("Tên/rất:dài*không[hợp]lệ vượt quá ba mươi mốt ký tự", [{ key: "a", label: "A" }], []))["xl/workbook.xml"]);
   const name = wb.match(/name="([^"]*)"/)[1];
   assert.ok(name.length <= 31, "tên sheet phải ≤ 31 ký tự");
-  assert.doesNotMatch(name, /[:\?*[\]/]/, "không được còn ký tự cấm");
+  assert.doesNotMatch(name, /[:?*[\]/]/, "không được còn ký tự cấm");
 });
 
 test("chưa nhập sản lượng thì cột % để TRỐNG, không phải 0", () => {

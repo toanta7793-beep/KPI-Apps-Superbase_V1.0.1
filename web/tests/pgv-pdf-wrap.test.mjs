@@ -51,3 +51,12 @@ test("nội dung ngắn vẫn giữ chiều cao tối thiểu, bố cục không
   const vals = [1, "T5", "Kéo dây", "2", "10 m", "02/09/2026", "04/09/2026"];
   assert.equal(rowHeight(font, vals, widths, 7, 36), 36);
 });
+
+test("split tôn trọng xuống dòng cứng — ô gộp mã nhóm phải ra đúng số dòng", () => {
+  const dong = split(font, "Ống HDPE D110\nPhễu thu sàn DN100", 7, 10_000);
+  assert.deepEqual(dong, ["Ống HDPE D110", "Phễu thu sàn DN100"],
+    "hai hạng mục phải nằm trên hai dòng, không dính thành một khối");
+  assert.equal(rowHeight(font, ["Ống HDPE D110\nPhễu thu sàn DN100"], [10_000], 7, 10) > 10, true,
+    "chiều cao dòng phải nới ra cho đủ hai dòng");
+  assert.deepEqual(split(font, "một dòng", 7, 10_000), ["một dòng"], "không có \n thì giữ nguyên như cũ");
+});
