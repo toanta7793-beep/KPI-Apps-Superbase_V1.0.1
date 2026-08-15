@@ -70,16 +70,20 @@ export default function KpiApp(){
     setIdentity(current);
     const base=[
       supabase.from("teams").select("id,team_code,leader_name,is_active,stt").is("deleted_at",null).order("stt"),
-      supabase.from("workers").select("id,mnv,full_name,job_title,team_id,stt_in_team,teams(leader_name)").is("deleted_at",null).order("stt_in_team"),
+      // overrideTypes cho các truy vấn có nhúng quan hệ: client không khai báo kiểu Database
+      // nên supabase-js đoán "teams(leader_name)" là MẢNG. Thực tế workers.team_id là khóa
+      // ngoại nhiều-một, PostgREST trả về một ĐỐI TƯỢNG. Khai báo thẳng kiểu đúng ở đây thay
+      // vì ép kiểu ở chỗ setState, để nơi sai lệch nằm ngay cạnh truy vấn sinh ra nó.
+      supabase.from("workers").select("id,mnv,full_name,job_title,team_id,stt_in_team,teams(leader_name)").is("deleted_at",null).order("stt_in_team").overrideTypes<Worker[],{merge:false}>(),
       supabase.rpc("get_job_metrics",{p_team_id:null,p_week_id:null}),
-      supabase.from("work_weeks").select("id,team_id,week_slot,start_date,end_date,status,teams(leader_name)").eq("status","ACTIVE").order("week_slot"),
+      supabase.from("work_weeks").select("id,team_id,week_slot,start_date,end_date,status,teams(leader_name)").eq("status","ACTIVE").order("week_slot").overrideTypes<Week[],{merge:false}>(),
       supabase.rpc("get_shared_work_weeks"),
       supabase.rpc("get_catalog_cap1"),
     ] as const;
     const [teamResult,workerResult,jobResult,weekResult,sharedWeekResult,catalogResult]=await Promise.all(base);
     const firstError=[teamResult,workerResult,jobResult,weekResult,sharedWeekResult,catalogResult].find(result=>result.error)?.error;
     if(firstError){setError(firstError.message);setBusy(false);return;}
-    setTeams((teamResult.data||[]) as Team[]); setWorkers((workerResult.data||[]) as Worker[]); setJobs((jobResult.data||[]) as Job[]); setWeeks((weekResult.data||[]) as Week[]); setSharedWeeks((sharedWeekResult.data||[]) as SharedWeek[]); setCatalog((catalogResult.data||[]) as CatalogItem[]);
+    setTeams((teamResult.data||[]) as Team[]); setWorkers(workerResult.data||[]); setJobs((jobResult.data||[]) as Job[]); setWeeks(weekResult.data||[]); setSharedWeeks((sharedWeekResult.data||[]) as SharedWeek[]); setCatalog((catalogResult.data||[]) as CatalogItem[]);
     const defaultTeam=current.team_id||((teamResult.data?.find(team=>team.is_active)?.id)||"");
     setTeamFilter(value=>value||defaultTeam); setPgvTeam(value=>value||defaultTeam);
     // KPI mở cho cả Giám sát, nhưng phạm vi do database quyết định: get_kpi_evaluation chỉ
@@ -93,8 +97,8 @@ export default function KpiApp(){
     }
     // Danh sách tài khoản chỉ phục vụ màn Phân Quyền, vẫn chỉ Admin.
     if(current.role_code==="ADMIN"){
-      const profileResult=await supabase.from("profiles").select("id,role_code,is_active,worker_id,workers(mnv,full_name,teams(leader_name))").order("role_code");
-      if(!profileResult.error) setProfiles((profileResult.data||[]) as Profile[]);
+      const profileResult=await supabase.from("profiles").select("id,role_code,is_active,worker_id,workers(mnv,full_name,teams(leader_name))").order("role_code").overrideTypes<Profile[],{merge:false}>();
+      if(!profileResult.error) setProfiles(profileResult.data||[]);
     }
     setBusy(false);
   }

@@ -2,9 +2,13 @@
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
 
+// Khai báo tại chỗ các kiểu của Cloudflare, giống như ExecutionContext bên dưới, thay vì kéo
+// thêm @cloudflare/workers-types: gói đó định nghĩa lại Request/Response ở phạm vi toàn cục và
+// sẽ đụng với lib "dom" mà phần giao diện đang dùng.
+// Không khai báo binding D1: hosting.json để d1 = null nên vite.config.ts sinh d1_databases là
+// mảng rỗng — không hề có binding nào tên DB. Khi nào bật D1 thì khai báo lại cùng lúc.
 interface Env {
-  ASSETS: Fetcher;
-  DB: D1Database;
+  ASSETS: { fetch(request: Request): Promise<Response> };
   IMAGES: {
     input(stream: ReadableStream): {
       transform(options: Record<string, unknown>): {
